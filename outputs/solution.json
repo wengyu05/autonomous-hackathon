@@ -1,0 +1,292 @@
+{
+  "status": "Feasible (time limit)",
+  "ok": true,
+  "message": "Stopped at the time limit; plan is within 52.25% of optimal.",
+  "objective_usd_per_year": 489925811.415435,
+  "best_bound_usd": 233928327.69206348,
+  "gap": 0.5225229570652222,
+  "solve_time_s": 62.93802285194397,
+  "demand_kt": {
+    "PNK": 200.0,
+    "PKN": 800.0,
+    "BPN": 170.0,
+    "TRK": 170.0
+  },
+  "saf_delivered_kt": 1340.0,
+  "total_annual_usd": 489925811.4154353,
+  "cost_per_t_saf_usd": 365.616277175698,
+  "model_size": {
+    "integer_vars": 265,
+    "continuous_vars": 14721,
+    "constraints": 7682,
+    "depot_candidates": 85,
+    "refinery_candidates": 89
+  },
+  "refinery_mix_search": [
+    {
+      "mix": "1 Large + 1 Small",
+      "result": "Feasible (time limit)",
+      "objective_usd": 489925811.415435,
+      "lower_bound_usd": 293711757.0170908,
+      "seconds": 60.215677976608276
+    },
+    {
+      "mix": "3 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 233928327.69206348
+    },
+    {
+      "mix": "2 Large",
+      "result": "not reached (time)",
+      "lower_bound_usd": 247595026.48614705
+    },
+    {
+      "mix": "1 Large + 2 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 277206207.2066614
+    },
+    {
+      "mix": "4 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 306817387.92717576
+    },
+    {
+      "mix": "2 Large + 1 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 320484086.72125936
+    },
+    {
+      "mix": "1 Large + 3 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 350095267.4417737
+    },
+    {
+      "mix": "3 Large",
+      "result": "not reached (time)",
+      "lower_bound_usd": 363761966.23585725
+    },
+    {
+      "mix": "2 Large + 2 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 393373146.9563716
+    },
+    {
+      "mix": "1 Large + 4 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 422984327.67688596
+    },
+    {
+      "mix": "3 Large + 1 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 436651026.47096956
+    },
+    {
+      "mix": "2 Large + 3 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 466262207.1914839
+    },
+    {
+      "mix": "3 Large + 2 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 509540086.7060818
+    },
+    {
+      "mix": "2 Large + 4 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 539151267.4265962
+    },
+    {
+      "mix": "3 Large + 3 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 582429146.941194
+    },
+    {
+      "mix": "3 Large + 4 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 655318207.1763064
+    }
+  ],
+  "dropped_candidates": [
+    [
+      "KAL_SUP_03",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_22",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_26",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_31",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_32",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_37",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_43",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_50",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_51",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_58",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_62",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_69",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_80",
+      "biomass site in the sea"
+    ],
+    [
+      "CENTROID_14",
+      "centroid in the sea"
+    ],
+    [
+      "CENTROID_16",
+      "centroid in the sea"
+    ]
+  ],
+  "config": {
+    "data": {
+      "biomass_csv": "data/kalimantan_80_locations_6800kt_full_range.csv",
+      "airports_glob": "data/airport*.dat",
+      "geo_json": "data/borneo_geo.json"
+    },
+    "airports": {
+      "PNK": "Supadio Intl",
+      "PKN": "Iskandar Intl",
+      "BPN": "Sultan Aji Muhammad Sulaiman Sepinggan Intl",
+      "TRK": "Juwata Intl"
+    },
+    "biomass_checks": {
+      "n_sites": 80,
+      "total_kt": 6800,
+      "min_kt": 20,
+      "max_kt": 100,
+      "bbox": {
+        "lat_min": -4.5,
+        "lat_max": 4.5,
+        "lon_min": 108.0,
+        "lon_max": 119.5
+      }
+    },
+    "mode": "meet_demand",
+    "demand_kt": {
+      "PNK": 200.0,
+      "PKN": 800.0,
+      "BPN": 170.0,
+      "TRK": 170.0
+    },
+    "refinery_yield": 0.2,
+    "depot_yield": 1.0,
+    "refinery_capacity_basis": "output",
+    "depot_capacity_basis": "input",
+    "opex_rate": 0.05,
+    "capex_annualisation": {
+      "years": 20,
+      "rate": 0.08
+    },
+    "roads": {
+      "source": "osrm",
+      "server": "https://router.project-osrm.org",
+      "matrix_cache": "data/road_matrix.json",
+      "routes_cache": "data/road_routes.json"
+    },
+    "circuity": 1.3,
+    "max_per_site": {
+      "depot": 4,
+      "refinery": 2
+    },
+    "nearest_depots_per_site": null,
+    "sea_leg": {
+      "airports": [
+        "TRK"
+      ],
+      "surcharge_usd_per_t": 0
+    },
+    "offshore_sites": "supply_only",
+    "candidates": {
+      "kmeans_k": 20,
+      "kmeans_seed": 42,
+      "refinery_at_airports": true
+    },
+    "facilities": {
+      "depot": {
+        "Small": {
+          "capex_usd": 2250000,
+          "capacity_kt": 150
+        },
+        "Large": {
+          "capex_usd": 4500000,
+          "capacity_kt": 300
+        }
+      },
+      "refinery": {
+        "Small": {
+          "capex_usd": 480000000,
+          "capacity_kt": 500
+        },
+        "Large": {
+          "capex_usd": 765000000,
+          "capacity_kt": 1087
+        }
+      }
+    },
+    "transport": {
+      "biomass_to_depot": {
+        "usd_per_tkm": 0.1,
+        "truck_t": {
+          "Small": 3,
+          "Large": 9
+        }
+      },
+      "depot_to_refinery": {
+        "usd_per_tkm": 0.12,
+        "truck_t": {
+          "Small": 18,
+          "Large": 30
+        }
+      },
+      "refinery_to_airport": {
+        "usd_per_tkm": 0.08,
+        "truck_t": {
+          "Small": 16,
+          "Large": 32
+        }
+      }
+    },
+    "solver": {
+      "name": "HiGHS",
+      "time_limit_s": 300,
+      "dashboard_time_limit_s": 60,
+      "mip_gap": 0.005,
+      "threads": 4
+    },
+    "verify": {
+      "tolerance": 1e-06,
+      "cost_tolerance_usd": 1.0
+    }
+  }
+}

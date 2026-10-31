@@ -1,0 +1,10 @@
+pandas
+numpy
+pulp>=3.3,<4
+highspy
+scikit-learn
+pyyaml
+pytest
+folium
+streamlit
+streamlit-folium
