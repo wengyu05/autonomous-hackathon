@@ -1,0 +1,17 @@
+[
+  {
+    "id": "optimised",
+    "label": "Optimised plan (MILP)",
+    "file": "/data/roads/results.json"
+  },
+  {
+    "id": "b1",
+    "label": "Baseline B1: One central refinery",
+    "file": "/data/roads/results_b1.json"
+  },
+  {
+    "id": "b2",
+    "label": "Baseline B2: Refinery at every airport",
+    "file": "/data/roads/results_b2.json"
+  }
+]

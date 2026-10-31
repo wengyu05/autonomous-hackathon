@@ -1,0 +1,568 @@
+{
+  "status": "Feasible (time limit)",
+  "ok": true,
+  "message": "Stopped at the time limit; plan is within 9.20% of optimal.",
+  "objective_usd_per_year": 926810896.9848592,
+  "best_bound_usd": 841500000.0,
+  "gap": 0.09204779234080683,
+  "solve_time_s": 303.02594089508057,
+  "demand_kt": {
+    "PNK": 300.0,
+    "PKN": 300.0,
+    "BPN": 300.0,
+    "TRK": 300.0
+  },
+  "saf_delivered_kt": 1199.9999999998067,
+  "total_annual_usd": 926810896.9847152,
+  "cost_per_t_saf_usd": 772.3424141540537,
+  "model_size": {
+    "integer_vars": 350,
+    "continuous_vars": 14721,
+    "constraints": 8115,
+    "depot_candidates": 85,
+    "refinery_candidates": 89
+  },
+  "refinery_mix_search": [
+    {
+      "mix": "6 Large",
+      "result": "Feasible (time limit)",
+      "objective_usd": 926810896.9848592,
+      "lower_bound_usd": 910687467.8676971,
+      "seconds": 300.17033076286316
+    },
+    {
+      "mix": "5 Large + 2 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 841500000.0
+    },
+    {
+      "mix": "4 Large + 4 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 861000000.0
+    },
+    {
+      "mix": "6 Large + 1 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 870000000.0
+    },
+    {
+      "mix": "3 Large + 6 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 880500000.0
+    },
+    {
+      "mix": "5 Large + 3 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 889500000.0
+    },
+    {
+      "mix": "7 Large",
+      "result": "not reached (time)",
+      "lower_bound_usd": 898500000.0
+    },
+    {
+      "mix": "2 Large + 8 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 900000000.0
+    },
+    {
+      "mix": "4 Large + 5 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 909000000.0
+    },
+    {
+      "mix": "6 Large + 2 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 918000000.0
+    },
+    {
+      "mix": "1 Large + 10 Small",
+      "result": "not reached (time)",
+      "lower_bound_usd": 919500000.0
+    },
+    {
+      "mix": "3 Large + 7 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 928500000.0
+    },
+    {
+      "mix": "5 Large + 4 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 937500000.0
+    },
+    {
+      "mix": "12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 969000000.0
+    },
+    {
+      "mix": "7 Large + 1 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 946500000.0
+    },
+    {
+      "mix": "2 Large + 9 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 948000000.0
+    },
+    {
+      "mix": "4 Large + 6 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 957000000.0
+    },
+    {
+      "mix": "6 Large + 3 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 966000000.0
+    },
+    {
+      "mix": "1 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 967500000.0
+    },
+    {
+      "mix": "3 Large + 8 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 976500000.0
+    },
+    {
+      "mix": "5 Large + 5 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 985500000.0
+    },
+    {
+      "mix": "13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1017000000.0
+    },
+    {
+      "mix": "7 Large + 2 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 994500000.0
+    },
+    {
+      "mix": "2 Large + 10 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 996000000.0
+    },
+    {
+      "mix": "4 Large + 7 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1005000000.0
+    },
+    {
+      "mix": "6 Large + 4 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1014000000.0
+    },
+    {
+      "mix": "1 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1015500000.0
+    },
+    {
+      "mix": "3 Large + 9 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1024500000.0
+    },
+    {
+      "mix": "5 Large + 6 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1033500000.0
+    },
+    {
+      "mix": "7 Large + 3 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1042500000.0
+    },
+    {
+      "mix": "2 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1044000000.0
+    },
+    {
+      "mix": "4 Large + 8 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1053000000.0
+    },
+    {
+      "mix": "6 Large + 5 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1062000000.0
+    },
+    {
+      "mix": "1 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1063500000.0
+    },
+    {
+      "mix": "3 Large + 10 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1072500000.0
+    },
+    {
+      "mix": "5 Large + 7 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1081500000.0
+    },
+    {
+      "mix": "7 Large + 4 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1090500000.0
+    },
+    {
+      "mix": "2 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1092000000.0
+    },
+    {
+      "mix": "4 Large + 9 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1101000000.0
+    },
+    {
+      "mix": "6 Large + 6 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1110000000.0
+    },
+    {
+      "mix": "3 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1120500000.0
+    },
+    {
+      "mix": "5 Large + 8 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1129500000.0
+    },
+    {
+      "mix": "7 Large + 5 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1138500000.0
+    },
+    {
+      "mix": "2 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1140000000.0
+    },
+    {
+      "mix": "4 Large + 10 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1149000000.0
+    },
+    {
+      "mix": "6 Large + 7 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1158000000.0
+    },
+    {
+      "mix": "3 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1168500000.0
+    },
+    {
+      "mix": "5 Large + 9 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1177500000.0
+    },
+    {
+      "mix": "7 Large + 6 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1186500000.0
+    },
+    {
+      "mix": "4 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1197000000.0
+    },
+    {
+      "mix": "6 Large + 8 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1206000000.0
+    },
+    {
+      "mix": "3 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1216500000.0
+    },
+    {
+      "mix": "5 Large + 10 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1225500000.0
+    },
+    {
+      "mix": "7 Large + 7 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1234500000.0
+    },
+    {
+      "mix": "4 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1245000000.0
+    },
+    {
+      "mix": "6 Large + 9 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1254000000.0
+    },
+    {
+      "mix": "5 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1273500000.0
+    },
+    {
+      "mix": "7 Large + 8 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1282500000.0
+    },
+    {
+      "mix": "4 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1293000000.0
+    },
+    {
+      "mix": "6 Large + 10 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1302000000.0
+    },
+    {
+      "mix": "5 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1321500000.0
+    },
+    {
+      "mix": "7 Large + 9 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1330500000.0
+    },
+    {
+      "mix": "6 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1350000000.0
+    },
+    {
+      "mix": "5 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1369500000.0
+    },
+    {
+      "mix": "7 Large + 10 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1378500000.0
+    },
+    {
+      "mix": "6 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1398000000.0
+    },
+    {
+      "mix": "7 Large + 11 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1426500000.0
+    },
+    {
+      "mix": "6 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1446000000.0
+    },
+    {
+      "mix": "7 Large + 12 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1474500000.0
+    },
+    {
+      "mix": "7 Large + 13 Small",
+      "result": "ruled out",
+      "lower_bound_usd": 1522500000.0
+    }
+  ],
+  "dropped_candidates": [
+    [
+      "KAL_SUP_03",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_22",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_26",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_31",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_32",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_37",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_43",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_50",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_51",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_58",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_62",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_69",
+      "biomass site in the sea"
+    ],
+    [
+      "KAL_SUP_80",
+      "biomass site in the sea"
+    ],
+    [
+      "CENTROID_14",
+      "centroid in the sea"
+    ],
+    [
+      "CENTROID_16",
+      "centroid in the sea"
+    ]
+  ],
+  "config": {
+    "data": {
+      "biomass_csv": "data/kalimantan_80_locations_6800kt_full_range.csv",
+      "airports_csv": "data/challenge3_airports_4.csv",
+      "parameters_xlsx": "data/challenge3_parameters.xlsx",
+      "geo_json": "data/borneo_geo.json"
+    },
+    "airports": {
+      "PNK": "Supadio Intl",
+      "PKN": "Iskandar Intl",
+      "BPN": "Sultan Aji Muhammad Sulaiman Sepinggan Intl",
+      "TRK": "Juwata Intl"
+    },
+    "biomass_checks": {
+      "n_sites": 80,
+      "total_kt": 6800,
+      "min_kt": 20,
+      "max_kt": 100,
+      "bbox": {
+        "lat_min": -4.5,
+        "lat_max": 4.5,
+        "lon_min": 108.0,
+        "lon_max": 119.5
+      }
+    },
+    "mode": "meet_demand",
+    "demand_kt": {
+      "PNK": 300,
+      "PKN": 300,
+      "BPN": 300,
+      "TRK": 300
+    },
+    "refinery_yield": 0.2,
+    "depot_yield": 1.0,
+    "refinery_capacity_basis": "input",
+    "depot_capacity_basis": "input",
+    "opex_rate": 0.05,
+    "capex_annualisation": {
+      "years": 20,
+      "rate": 0.0
+    },
+    "roads": {
+      "source": "osrm",
+      "server": "https://router.project-osrm.org",
+      "matrix_cache": "data/road_matrix.json",
+      "routes_cache": "data/road_routes.json"
+    },
+    "circuity": 1.3,
+    "max_per_site": {
+      "depot": 4,
+      "refinery": 2
+    },
+    "nearest_depots_per_site": null,
+    "sea_leg": {
+      "airports": [
+        "TRK"
+      ],
+      "mode": "barge",
+      "surcharge_usd_per_t": 0
+    },
+    "offshore_sites": "supply_only",
+    "candidates": {
+      "kmeans_k": 20,
+      "kmeans_seed": 42,
+      "refinery_at_airports": true
+    },
+    "facilities": {
+      "depot": {
+        "Small": {
+          "capex_usd": 2250000,
+          "capacity_kt": 150,
+          "variable_opex_usd_per_t": 5
+        },
+        "Large": {
+          "capex_usd": 4500000,
+          "capacity_kt": 300,
+          "variable_opex_usd_per_t": 4
+        }
+      },
+      "refinery": {
+        "Small": {
+          "capex_usd": 480000000,
+          "capacity_kt": 500,
+          "variable_opex_usd_per_t": 60
+        },
+        "Large": {
+          "capex_usd": 765000000,
+          "capacity_kt": 1087,
+          "variable_opex_usd_per_t": 55
+        }
+      }
+    },
+    "transport": {
+      "biomass_to_depot": {
+        "usd_per_tkm": 0.1,
+        "truck_t": {
+          "Small": 3,
+          "Large": 9
+        }
+      },
+      "depot_to_refinery": {
+        "usd_per_tkm": 0.12,
+        "truck_t": {
+          "Small": 18,
+          "Large": 30
+        }
+      },
+      "refinery_to_airport": {
+        "usd_per_tkm": 0.08,
+        "truck_t": {
+          "Small": 16,
+          "Large": 32
+        }
+      }
+    },
+    "solver": {
+      "name": "HiGHS",
+      "time_limit_s": 300,
+      "dashboard_time_limit_s": 60,
+      "mip_gap": 0.005,
+      "threads": 4
+    },
+    "verify": {
+      "tolerance": 1e-06,
+      "cost_tolerance_usd": 1.0
+    }
+  }
+}
