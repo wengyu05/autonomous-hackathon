@@ -91,6 +91,8 @@ export interface PlanComparison {
   refineries: number;
   /** e.g. "1 Small, 1 Small" */
   refinerySizes?: string;
+  logistics?: number;
+  capexOneTime?: number;
 }
 
 export interface Check {

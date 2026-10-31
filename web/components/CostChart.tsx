@@ -1,53 +1,88 @@
-import type { Results } from "@/lib/types";
-import { usd } from "@/lib/format";
-import { DataTable } from "./Tables";
+"use client";
 
-// The annual items charted in the Streamlit app, in its order.
-const CHARTED = [
-  "CapEx annualised",
-  "OpEx",
-  "Logistics: biomass to depot",
-  "Logistics: depot to refinery",
-  "Logistics: refinery to airport",
-  "Sea surcharge (Tarakan)",
-];
+import { Cell, Pie, PieChart, Tooltip } from "recharts";
+import type { Flow, Leg, Summary } from "@/lib/types";
+import { LEG_STYLE } from "@/lib/legs";
+import { usdM } from "@/lib/format";
 
-/** Costs tab: bar chart of the annual cost items plus the full breakdown table (optimised plan only). */
-export default function CostChart({ data }: { data: Results }) {
-  const items = data.summary.costItems;
-  if ((data.meta?.scenario ?? "optimised") !== "optimised" || !items) {
-    return (
-      <p className="rounded-lg bg-[#e8f0fb] px-4 py-3 text-sm text-[#1d4f91]">
-        The detailed cost breakdown is for the optimised plan. Baseline totals are in the Baselines tab.
-      </p>
-    );
-  }
-  const bars = CHARTED.map((k) => ({ k, v: items.find((i) => i.item === k)?.usd ?? 0 }));
-  const top = Math.max(1, ...bars.map((b) => b.v));
+interface CostChartProps {
+  summary: Summary;
+  flows: Flow[];
+}
+
+/** Donut of annual cost (CapEx, OpEx, logistics) plus logistics split by leg. */
+export default function CostChart({ summary, flows }: CostChartProps) {
+  const slices = [
+    { name: "CapEx (annualised)", value: summary.capex, color: "#14532d" },
+    { name: "OpEx", value: summary.opex, color: "#86b08f" },
+    { name: "Logistics", value: summary.logistics, color: "#94a3b8" },
+  ];
+  const byLeg = (Object.keys(LEG_STYLE) as Leg[]).map((leg) => ({
+    leg,
+    value: flows.filter((f) => f.leg === leg).reduce((t, f) => t + f.cost, 0),
+  }));
+  const legTotal = byLeg.reduce((t, l) => t + l.value, 0) || 1;
 
   return (
-    <div className="space-y-4">
-      <figure aria-label="Annual cost by item, USD million per year" className="space-y-1.5">
-        {bars.map((b) => (
-          <div key={b.k} className="grid grid-cols-[200px_1fr_64px] items-center gap-2 text-sm">
-            <span className="truncate text-ink-2">{b.k}</span>
-            <span className="h-4 rounded-r bg-[#eef1ef]">
-              <span className="block h-full rounded-r bg-[#2a78d6]" style={{ width: `${(100 * b.v) / top}%` }} />
-            </span>
-            <span className="text-right tabular-nums text-ink-2">${(b.v / 1e6).toFixed(1)}M</span>
+    <div className="grid gap-6 sm:grid-cols-[200px_1fr] sm:items-center">
+      <div className="relative mx-auto h-[200px] w-[200px]" role="img" aria-label={`Annual cost ${usdM(summary.totalCost)}: ${slices.map((s) => `${s.name} ${usdM(s.value)}`).join(", ")}`}>
+        {/* Fixed size: the donut column is always 200px wide. */}
+        <PieChart width={200} height={200}>
+            <Pie data={slices} dataKey="value" nameKey="name" innerRadius={58} outerRadius={84} paddingAngle={0} stroke="none" isAnimationActive={false}>
+              {slices.map((s) => (
+                <Cell key={s.name} fill={s.color} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v) => usdM(Number(v))} />
+        </PieChart>
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+          <div>
+            <p className="text-xs text-slate-500">per year</p>
+            <p className="text-lg font-semibold text-slate-900">{usdM(summary.totalCost)}</p>
           </div>
-        ))}
-        <figcaption className="pt-1 text-center text-xs text-ink-2">USD million per year</figcaption>
-      </figure>
-      <DataTable
-        caption="Cost breakdown"
-        rows={items}
-        columns={[
-          { label: "Item", cell: (r) => r.item },
-          { label: "USD", numeric: true, cell: (r) => (r.basis === "USD/t" ? `$${r.usd.toFixed(2)}` : usd(r.usd)) },
-          { label: "Basis", cell: (r) => r.basis },
-        ]}
-      />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <ul className="space-y-2">
+          {slices.map((s) => (
+            <li key={s.name} className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex items-center gap-2 text-slate-700">
+                <span className="h-2.5 w-2.5" style={{ background: s.color }} aria-hidden />
+                {s.name}
+              </span>
+              <span className="tabular-nums text-slate-900">
+                {usdM(s.value)}
+                <span className="ml-2 text-xs text-slate-500">{((s.value / summary.totalCost) * 100).toFixed(0)}%</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-slate-500">Logistics by leg</p>
+          <div className="flex h-2 overflow-hidden bg-slate-100">
+            {byLeg.map((l) => (
+              <div key={l.leg} style={{ width: `${(l.value / legTotal) * 100}%`, background: LEG_STYLE[l.leg].color }} />
+            ))}
+          </div>
+          <ul className="mt-2 space-y-1">
+            {byLeg.map((l) => (
+              <li key={l.leg} className="flex justify-between text-xs text-slate-600">
+                <span>{LEG_STYLE[l.leg].label}</span>
+                <span className="tabular-nums">{usdM(l.value)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {summary.capexOneTime != null && (
+          <p className="text-xs text-slate-500">
+            One-time construction: <b className="text-slate-700">{usdM(summary.capexOneTime, 0)}</b>, spread over the
+            plant life as annualised CapEx.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

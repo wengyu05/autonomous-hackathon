@@ -1,8 +1,8 @@
 # Kalimantan SAF Planner (web dashboard)
 
-Next.js + TypeScript + Tailwind dashboard for the SAF supply chain optimiser. It has the same layout
-and information as the Streamlit app (`app.py`): airport demand inputs and Solve on the left; title,
-solver status and headline costs at the top; the road-route map beside seven data tabs.
+Next.js + TypeScript + Tailwind dashboard for the SAF supply chain optimiser. Its features are
+arranged like the Streamlit app (`app.py`): airport demand inputs and Solve on the left; title,
+solver status and headline costs at the top; the Streamlit app's road-route map beside seven data tabs.
 
 It reads static JSON from `public/data/`, so it shows the saved plans with no backend. To re-solve
 from the dashboard, also run the FastAPI backend.
@@ -50,13 +50,14 @@ then reloads them.
 | Component | What it shows |
 |---|---|
 | `Sidebar` | Airport SAF demand boxes (with −/+), solver time limit, Solve, the 1,360 kt feasibility limit, and the "Plan on the map" switch |
-| `Header` | Title, description, and the solver status banner (status, gap, solve time, independent checks, demand) |
-| `KpiCard` | The five headline numbers: total cost per year, cost per tonne of SAF, one-time CapEx, trucking per year, refinery · depot sites. Baselines show how much more they cost than the optimised plan |
+| `Header` | Title, table search, plan dropdown (kept in sync with the sidebar), data download |
+| `page.tsx` | Solver status bar under the header (status, gap, solve time, independent checks, demand) |
+| `KpiCard` | The Streamlit app's five headline numbers: total cost, cost per tonne of SAF, one-time CapEx, trucking, refineries · depots, each compared with another plan (the optimised plan with B1; a baseline with the optimised plan) |
 | `NetworkMap` | Leaflet map (client-only via `NetworkMapLoader`) on OpenStreetMap tiles, with the Streamlit map's markers: biomass sites (filled if used, red ring if in the sea), depot diamonds, refinery and airport pins. Routes follow real roads, coloured by leg, width ∝ kt/yr, with arrows showing the direction the trucks drive. Layer switch top right; click a site to highlight its routes |
 | `DataTabs` | The seven tabs beside the map: Airports, Facilities, Costs, Routes, Baselines, Checks, Assumptions |
-| `AirportList` | Airports tab: demand, delivered, supplying refineries and average road km per airport |
-| `CostChart` | Costs tab: annual cost bars and the full cost breakdown |
-| `Tables` | Facilities, Routes, Baselines, Checks (with the refinery mixes searched) and Assumptions tabs |
+| `AirportList` | Airports tab: SAF delivered against demand per airport, with supplying refineries and average road km |
+| `CostChart` | Costs tab: annual cost donut and logistics by leg, followed by the full cost breakdown table |
+| `Tables` | Facilities (with utilisation), Routes (leg filter, sortable), Baselines, Checks (with the refinery mixes searched) and Assumptions tabs. The header search filters the Facilities and Routes tables |
 
 The status banner shows the solver result honestly: "Optimal" only when proven, otherwise the
 remaining optimality gap.

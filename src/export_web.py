@@ -131,7 +131,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
                             "costPerTonne": summary["costPerTonne"], "safDelivered": summary["safDelivered"],
                             "depotSites": int((fac.type == "depot").sum()),
                             "refineries": int(ref.n_small.sum() + ref.n_large.sum()),
-                            "refinerySizes": ", ".join(ref["size"])})
+                            "refinerySizes": ", ".join(ref["size"]),
+                            "logistics": summary["logistics"], "capexOneTime": summary["capexOneTime"]})
 
     docs = {}
     for sid, label, _, _, summary, extra in plans:

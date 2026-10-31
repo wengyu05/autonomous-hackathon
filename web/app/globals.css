@@ -1,42 +1,93 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-source-sans), "Source Sans Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* The Streamlit app's light theme (.streamlit/config.toml) and status colours. */
 @theme {
-  --color-brand: #0d6b5b;
-  --color-brand-dark: #0a5649;
-  --color-page: #f6f7f5;
-  --color-side: #e9eeeb;
-  --color-line: #d6ddd9;
-  --color-ink: #1b2220;
-  --color-ink-2: #52514e;
-  --color-ok: #dcefe0;
-  --color-ok-ink: #1d7b38;
-  --color-warn: #fdf3dc;
-  --color-warn-ink: #7a5300;
-  --color-critical: #d03b2f;
-  --color-critical-soft: #fbe9e7;
+  /* Single accent colour. */
+  --color-brand: #15803d;
+  --color-brand-soft: #f0fdf4;
 }
 
 body {
-  @apply bg-page text-ink antialiased;
+  @apply bg-white text-slate-900 antialiased;
 }
 
+/* Consistent, visible keyboard focus everywhere. */
 :focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
 
-/* ---------- Leaflet ---------- */
+/* ---------- Leaflet markers (divIcons) ---------- */
 .leaflet-container {
-  font-family: var(--font-source-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  background: #f8fafc;
 }
 
+.marker-depot {
+  background: #15803d;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 0.25);
+}
+
+.marker-refinery {
+  border-radius: 9999px;
+  background: #14532d;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 0.35);
+}
+
+.marker-airport {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.marker-airport .pin {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #1e3a5f;
+  color: #fff;
+}
+
+.marker-airport .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  background: rgb(255 255 255 / 0.9);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.leaflet-tooltip.saf-tooltip {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+  color: #0f172a;
+}
+
+/* Selected marker: dark outline. */
+.marker-depot.is-selected,
+.marker-refinery.is-selected {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+}
+
+.marker-airport.is-selected .pin {
+  background: #0f172a;
+}
+
+/* ---------- Streamlit map markers (NetworkMap) ---------- */
+
 /* Map pins drawn like folium's AwesomeMarkers: a coloured teardrop with a white icon. */
-.pin {
+.pin-marker {
   position: relative;
   width: 30px;
   height: 30px;
@@ -45,7 +96,7 @@ body {
   border: 1px solid rgb(0 0 0 / 0.25);
   box-shadow: 1px 2px 4px rgb(0 0 0 / 0.35);
 }
-.pin i {
+.pin-marker i {
   position: absolute;
   inset: 0;
   display: grid;
@@ -57,17 +108,17 @@ body {
 .pin-gray { background: #575757; }
 .pin-black { background: #303030; }
 .pin-red { background: #d33d2a; }
-.pin.is-selected { outline: 2px solid #0b0b0b; outline-offset: 2px; }
+.pin-marker.is-selected { outline: 2px solid #0f172a; outline-offset: 2px; }
 
-/* Depot: white diamond with a dark edge, as in the Streamlit map. */
+/* Depot: white diamond with a dark edge. */
 .depot-diamond {
   background: #fff;
   border: 2px solid #0b0b0b;
   transform: rotate(45deg);
 }
-.depot-diamond.is-selected { outline: 2px solid #0d6b5b; outline-offset: 2px; }
+.depot-diamond.is-selected { outline: 2px solid var(--color-brand); outline-offset: 2px; }
 
-/* Direction arrow along a route; rotated to the road's heading. */
+/* Direction arrow along a route, rotated to the road's heading. */
 .route-arrow {
   width: 0;
   height: 0;
@@ -75,21 +126,4 @@ body {
   border-right: 5px solid transparent;
   border-bottom: 9px solid currentColor;
   filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
-}
-
-.airport-label {
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
-}
-
-.leaflet-tooltip.saf-tooltip {
-  border: 1px solid #d6ddd9;
-  border-radius: 4px;
-  padding: 6px 8px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
-  color: #1b2220;
-  font-size: 12.5px;
-  line-height: 1.45;
 }

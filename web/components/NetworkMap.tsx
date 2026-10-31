@@ -78,7 +78,7 @@ function arrowsAlong(path: [number, number][]): { at: [number, number]; deg: num
 const pinIcon = (colour: "gray" | "black" | "red", icon: string, selected: boolean) =>
   L.divIcon({
     className: "",
-    html: `<div class="pin pin-${colour}${selected ? " is-selected" : ""}"><i class="fa fa-${icon}"></i></div>`,
+    html: `<div class="pin-marker pin-${colour}${selected ? " is-selected" : ""}"><i class="fa fa-${icon}"></i></div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 36],
   });
@@ -170,7 +170,7 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
   });
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-line">
+    <div className="relative h-full w-full overflow-hidden border border-slate-200">
       <MapContainer center={KALIMANTAN_CENTER} zoom={6} minZoom={4} className="h-full w-full" aria-label="Map of the SAF supply network in Kalimantan">
         <TileLayer
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -320,12 +320,12 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
           aria-label="Map layers"
           aria-expanded={layersOpen}
           onClick={() => setLayersOpen((o) => !o)}
-          className="grid h-11 w-11 place-items-center rounded border-2 border-black/20 bg-white text-ink-2 hover:bg-page"
+          className="grid h-11 w-11 place-items-center rounded border-2 border-black/20 bg-white text-slate-500 hover:bg-slate-50"
         >
           <i className="fa fa-layer-group" aria-hidden />
         </button>
         {layersOpen && (
-          <div className="mt-1 w-64 space-y-1 rounded border-2 border-black/20 bg-white p-2.5 text-xs text-ink">
+          <div className="mt-1 w-64 space-y-1 rounded border-2 border-black/20 bg-white p-2.5 text-xs text-slate-900">
             {LAYERS.map((l) => (
               <label key={l.key} className="flex cursor-pointer items-center gap-2">
                 <input
@@ -342,14 +342,14 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
       </div>
 
       {/* Legend, bottom left, matching the Streamlit map. */}
-      <div className="pointer-events-none absolute bottom-6 left-2.5 z-[1000] rounded-md bg-white/95 px-2.5 py-1.5 text-[11.5px] leading-[1.55] text-ink shadow">
+      <div className="pointer-events-none absolute bottom-6 left-2.5 z-[1000] rounded-md bg-white/95 px-2.5 py-1.5 text-[11.5px] leading-[1.55] text-slate-900 shadow">
         {Object.values(LEG_STYLE).map((s) => (
           <p key={s.label} className="flex items-center">
             <span className="mr-1.5 inline-block h-1 w-[18px] rounded-sm" style={{ background: s.color }} aria-hidden />
             {s.label}
           </p>
         ))}
-        <p className="text-ink-2">Road routes · width ∝ kt/yr · arrows show truck direction</p>
+        <p className="text-slate-500">Road routes · width ∝ kt/yr · arrows show truck direction</p>
         <p>
           <i className="fa fa-industry" aria-hidden /> Refinery&nbsp;&nbsp;
           <span className="mx-1 inline-block h-2 w-2 rotate-45 border-2" style={{ borderColor: INK }} aria-hidden /> Depot&nbsp;&nbsp;

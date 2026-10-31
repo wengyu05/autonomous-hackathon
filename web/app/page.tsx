@@ -7,12 +7,38 @@ import KpiCard from "@/components/KpiCard";
 import NetworkMap from "@/components/NetworkMapLoader";
 import DataTabs from "@/components/DataTabs";
 import { buildKpis } from "@/lib/kpis";
+import { num } from "@/lib/format";
 import { solve, solverOnline } from "@/lib/solver";
 import { useResults } from "@/lib/useResults";
 
-/** Same layout as the Streamlit app: inputs on the left, map beside the data tabs on the right. */
+/** Solver result for the optimised plan, shown whichever plan is on the map (as the Streamlit app does). */
+function StatusBar({ meta }: { meta: NonNullable<ReturnType<typeof useResults>["data"]>["meta"] }) {
+  const status = meta?.optimisedStatus ?? meta?.status ?? "n/a";
+  const gap = meta?.optimisedGap ?? meta?.gap;
+  const secs = meta?.optimisedSolveTimeS ?? meta?.solveTimeS;
+  const ok = status === "Optimal" && meta?.verified;
+  const demand = Object.entries(meta?.demandKt ?? {}).map(([k, v]) => `${k} ${num(v)}`).join(" · ");
+  return (
+    <p
+      role="status"
+      className={`border-l-2 p-3 text-sm ${ok ? "border-emerald-600 bg-emerald-50 text-emerald-900" : "border-amber-500 bg-amber-50 text-amber-900"}`}
+    >
+      <b>{ok ? "Proven optimal" : status}</b>
+      {gap != null && ` · within ${(gap * 100).toFixed(2)}% of the best possible plan`}
+      {secs != null && ` · solved in ${Math.round(secs)} s`}
+      {meta?.checksTotal ? ` · independent checks ${meta.checksPassed}/${meta.checksTotal} passed` : ""}
+      {demand && ` · demand ${demand} kt SAF/yr`}
+    </p>
+  );
+}
+
+/**
+ * Arranged like the Streamlit app: demand inputs on the left; title, solver status and headline numbers
+ * on top; the map beside the data tabs.
+ */
 export default function Dashboard() {
-  const { scenarioId, setScenarioId, data, error, loading, reload } = useResults();
+  const { scenarios, scenarioId, setScenarioId, data, error, loading, file, reload } = useResults();
+  const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [solving, setSolving] = useState(false);
   const [solveError, setSolveError] = useState<string | null>(null);
@@ -44,8 +70,13 @@ export default function Dashboard() {
     }
   };
 
+  const demand = data?.airports.reduce((t, a) => t + a.demandKt, 0) ?? 0;
+  const subtitle = data
+    ? `${data.meta?.label ?? "Plan"} · demand ${num(demand)} kt SAF/yr across ${data.airports.length} airports`
+    : undefined;
+
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex min-h-screen flex-col bg-white md:flex-row">
       {data && (
         <Sidebar
           airports={data.airports}
@@ -60,40 +91,58 @@ export default function Dashboard() {
         />
       )}
 
-      <main className="mx-auto w-full min-w-0 max-w-[1560px] flex-1 px-4 py-10 sm:px-12 lg:px-20" aria-busy={loading || solving}>
+      <main className="mx-auto w-full min-w-0 max-w-[1500px] flex-1 space-y-6 px-4 py-6 sm:px-8" aria-busy={loading || solving}>
+        <Header
+          scenarios={scenarios}
+          scenarioId={scenarioId}
+          onScenarioChange={setScenarioId}
+          file={file}
+          query={query}
+          onQueryChange={setQuery}
+          subtitle={subtitle}
+        />
+
         {error && (
-          <p role="alert" className="mb-4 rounded-lg bg-critical-soft p-3 text-sm text-critical">
+          <p role="alert" className="border-l-2 border-rose-500 bg-rose-50 p-3 text-sm text-rose-800">
             {error}
           </p>
         )}
-        {data && (
-          <div className="space-y-6">
-            <Header data={data} />
 
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
+        {data && (
+          <>
+            <StatusBar meta={data.meta} />
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
               {buildKpis(data).map((k) => (
                 <KpiCard key={k.label} {...k} />
               ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[3fr_2fr]">
-              <div className="space-y-3">
-                <div className="h-[660px]">
+            <div className="grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 xl:grid-cols-[3fr_2fr]">
+              <div className="min-w-0 space-y-3">
+                <div className="h-[460px] lg:h-[620px]">
                   <NetworkMap data={data} selectedId={selectedId} onSelect={setSelectedId} />
                 </div>
-                <p className="text-sm text-ink-2">
-                  Truck routes follow OpenStreetMap roads (routing by OSRM); arrows show which way the trucks drive.
-                  Hover lines and markers for details; click a site to highlight its routes. The layers button (top
-                  right) turns groups on and off. © OpenStreetMap contributors.
+                <p className="text-xs text-slate-500" aria-live="polite">
+                  {selectedId ? (
+                    <>
+                      Showing routes connected to {selectedId}.{" "}
+                      <button type="button" onClick={() => setSelectedId(null)} className="underline hover:text-slate-800">
+                        Clear
+                      </button>
+                    </>
+                  ) : (
+                    "Truck routes follow OpenStreetMap roads (routing by OSRM); arrows show which way the trucks drive. Hover a marker or line for details; click a site to show only its routes."
+                  )}
                 </p>
-                <p className="rounded-lg bg-warn px-4 py-3 text-sm text-warn-ink">
-                  ⚠️ <b>Known limit: Tarakan (TRK) is on an island.</b> Its SAF reaches it by the ferry in the road
-                  network, priced at the truck rate. A real plan needs a barge or ferry tariff (assumption A12).
+                <p className="border-l-2 border-amber-500 bg-amber-50 p-3 text-xs text-amber-900">
+                  <b>Known limit: Tarakan (TRK) is on an island.</b> Its SAF reaches it by the ferry in the road network,
+                  priced at the truck rate. A real plan needs a barge or ferry tariff (assumption A12).
                 </p>
               </div>
-              <DataTabs data={data} selectedId={selectedId} onSelect={setSelectedId} />
+              <DataTabs data={data} query={query} selectedId={selectedId} onSelect={setSelectedId} />
             </div>
-          </div>
+          </>
         )}
       </main>
     </div>
