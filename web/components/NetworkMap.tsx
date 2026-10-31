@@ -74,14 +74,17 @@ function arrowsAlong(path: [number, number][]): { at: [number, number]; deg: num
   return out;
 }
 
-/** Folium-style map pin: a coloured teardrop with a white Font Awesome icon. */
-const pinIcon = (colour: "gray" | "black" | "red", icon: string, selected: boolean) =>
+/** Folium-style map pin: a coloured teardrop with a white Font Awesome icon. `dx` shifts it sideways in pixels. */
+const pinIcon = (colour: "gray" | "black" | "red", icon: string, selected: boolean, dx = 0) =>
   L.divIcon({
     className: "",
     html: `<div class="pin-marker pin-${colour}${selected ? " is-selected" : ""}"><i class="fa fa-${icon}"></i></div>`,
     iconSize: [30, 30],
-    iconAnchor: [15, 36],
+    iconAnchor: [15 - dx, 36],
   });
+
+/** A refinery built at an airport shares its coordinates; its pin moves left so the airport pin doesn't hide it. */
+const AT_AIRPORT_DX = -17;
 
 const arrowIcon = (colour: string, deg: number) =>
   L.divIcon({
@@ -267,7 +270,12 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
             <Marker
               key={`${r.id}-${selectedId === r.id}`}
               position={[r.lat, r.lng]}
-              icon={pinIcon("black", "industry", selectedId === r.id)}
+              icon={pinIcon(
+                "black",
+                "industry",
+                selectedId === r.id,
+                visible.airports && data.airports.some((a) => km([a.lat, a.lng], [r.lat, r.lng]) < 0.5) ? AT_AIRPORT_DX : 0,
+              )}
               eventHandlers={select(r.id)}
               zIndexOffset={500}
               title={`Refinery at ${r.site ?? siteOf(r.id)}`}
