@@ -1,13 +1,13 @@
 {
-  "status": "Feasible (time limit)",
-  "gap": 0.5225229570652222,
+  "status": "Optimal",
+  "gap": 0.00436898014947715,
   "all_pass": true,
-  "recomputed_total_usd": 489925811.4154353,
+  "recomputed_total_usd": 216841828.00659913,
   "checks": [
     {
       "check": "All flows non-negative",
       "pass": true,
-      "detail": "161 flows"
+      "detail": "51 flows"
     },
     {
       "check": "Every flow starts and ends at a built facility, site or airport",
@@ -30,7 +30,7 @@
       "detail": ""
     },
     {
-      "check": "2. Depot capacity (55 depot sites)",
+      "check": "2. Depot capacity (5 depot sites)",
       "pass": true,
       "detail": ""
     },
@@ -52,7 +52,7 @@
     {
       "check": "6. Demand met at all 4 airports",
       "pass": true,
-      "detail": "PNK 200.000/200, PKN 800.000/800, BPN 170.000/170, TRK 170.000/170"
+      "detail": "PNK 170.000/170, PKN 170.000/170, BPN 170.000/170, TRK 170.000/170"
     },
     {
       "check": "7. Facilities per site within limits",
@@ -67,23 +67,23 @@
     {
       "check": "Recomputed total cost = solver objective",
       "pass": true,
-      "detail": "recomputed $489,925,811.42 vs $489,925,811.42"
+      "detail": "recomputed $216,841,828.01 vs $216,841,828.01"
     },
     {
       "check": "Recomputed total cost = cost_breakdown.csv",
       "pass": true,
-      "detail": "recomputed $489,925,811.42 vs $489,925,811.42"
+      "detail": "recomputed $216,841,828.01 vs $216,841,828.01"
     }
   ],
   "baselines": {
     "B1": {
       "all_pass": true,
-      "recomputed_total_usd": 925455954.8325952,
+      "recomputed_total_usd": 392431349.5860419,
       "checks": [
         {
           "check": "All flows non-negative",
           "pass": true,
-          "detail": "149 flows"
+          "detail": "79 flows"
         },
         {
           "check": "Every flow starts and ends at a built facility, site or airport",
@@ -106,7 +106,7 @@
           "detail": ""
         },
         {
-          "check": "2. Depot capacity (66 depot sites)",
+          "check": "2. Depot capacity (35 depot sites)",
           "pass": true,
           "detail": ""
         },
@@ -128,7 +128,7 @@
         {
           "check": "6. Demand met at all 4 airports",
           "pass": true,
-          "detail": "PNK 200.000/200, PKN 800.000/800, BPN 170.000/170, TRK 170.000/170"
+          "detail": "PNK 170.000/170, PKN 170.000/170, BPN 170.000/170, TRK 170.000/170"
         },
         {
           "check": "No depot or refinery at an offshore site (A13)",
@@ -138,18 +138,18 @@
         {
           "check": "Recomputed total cost = baselines.csv",
           "pass": true,
-          "detail": "recomputed $925,455,954.83 vs $925,455,954.83"
+          "detail": "recomputed $392,431,349.59 vs $392,431,349.59"
         }
       ]
     },
     "B2": {
       "all_pass": true,
-      "recomputed_total_usd": 586557866.4932063,
+      "recomputed_total_usd": 381253985.41920614,
       "checks": [
         {
           "check": "All flows non-negative",
           "pass": true,
-          "detail": "153 flows"
+          "detail": "91 flows"
         },
         {
           "check": "Every flow starts and ends at a built facility, site or airport",
@@ -172,7 +172,7 @@
           "detail": ""
         },
         {
-          "check": "2. Depot capacity (67 depot sites)",
+          "check": "2. Depot capacity (43 depot sites)",
           "pass": true,
           "detail": ""
         },
@@ -194,7 +194,7 @@
         {
           "check": "6. Demand met at all 4 airports",
           "pass": true,
-          "detail": "PNK 200.000/200, PKN 800.000/800, BPN 170.000/170, TRK 170.000/170"
+          "detail": "PNK 170.000/170, PKN 170.000/170, BPN 170.000/170, TRK 170.000/170"
         },
         {
           "check": "No depot or refinery at an offshore site (A13)",
@@ -204,7 +204,7 @@
         {
           "check": "Recomputed total cost = baselines.csv",
           "pass": true,
-          "detail": "recomputed $586,557,866.49 vs $586,557,866.49"
+          "detail": "recomputed $381,253,985.42 vs $381,253,985.42"
         }
       ]
     }

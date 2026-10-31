@@ -1,20 +1,20 @@
 {
-  "status": "Feasible (time limit)",
+  "status": "Optimal",
   "ok": true,
-  "message": "Stopped at the time limit; plan is within 52.25% of optimal.",
-  "objective_usd_per_year": 489925811.415435,
-  "best_bound_usd": 233928327.69206348,
-  "gap": 0.5225229570652222,
-  "solve_time_s": 62.93802285194397,
+  "message": "",
+  "objective_usd_per_year": 216841828.0065991,
+  "best_bound_usd": 215894450.36446193,
+  "gap": 0.00436898014947715,
+  "solve_time_s": 302.9582169055939,
   "demand_kt": {
-    "PNK": 200.0,
-    "PKN": 800.0,
+    "PNK": 170.0,
+    "PKN": 170.0,
     "BPN": 170.0,
     "TRK": 170.0
   },
-  "saf_delivered_kt": 1340.0,
-  "total_annual_usd": 489925811.4154353,
-  "cost_per_t_saf_usd": 365.616277175698,
+  "saf_delivered_kt": 680.0,
+  "total_annual_usd": 216841828.00659913,
+  "cost_per_t_saf_usd": 318.8850411861752,
   "model_size": {
     "integer_vars": 265,
     "continuous_vars": 14721,
@@ -24,86 +24,60 @@
   },
   "refinery_mix_search": [
     {
+      "mix": "1 Large",
+      "result": "Optimal",
+      "objective_usd": 259585589.4393794,
+      "lower_bound_usd": 259380038.39808324,
+      "seconds": 28.32321834564209
+    },
+    {
+      "mix": "2 Small",
+      "result": "Optimal",
+      "objective_usd": 216841828.0065991,
+      "lower_bound_usd": 215894450.36446193,
+      "seconds": 151.7512331008911
+    },
+    {
       "mix": "1 Large + 1 Small",
       "result": "Feasible (time limit)",
-      "objective_usd": 489925811.415435,
-      "lower_bound_usd": 293711757.0170908,
-      "seconds": 60.215677976608276
+      "objective_usd": 260119707.52119708,
+      "lower_bound_usd": 236934035.06270033,
+      "seconds": 114.59733510017395
     },
     {
       "mix": "3 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 233928327.69206348
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 226411643.35531753
     },
     {
       "mix": "2 Large",
-      "result": "not reached (time)",
-      "lower_bound_usd": 247595026.48614705
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 240078342.1494011
     },
     {
       "mix": "1 Large + 2 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 277206207.2066614
-    },
-    {
-      "mix": "4 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 306817387.92717576
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 269689522.8699154
     },
     {
       "mix": "2 Large + 1 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 320484086.72125936
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 312967402.3845134
     },
     {
       "mix": "1 Large + 3 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 350095267.4417737
-    },
-    {
-      "mix": "3 Large",
-      "result": "not reached (time)",
-      "lower_bound_usd": 363761966.23585725
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 342578583.10502774
     },
     {
       "mix": "2 Large + 2 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 393373146.9563716
-    },
-    {
-      "mix": "1 Large + 4 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 422984327.67688596
-    },
-    {
-      "mix": "3 Large + 1 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 436651026.47096956
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 385856462.6196256
     },
     {
       "mix": "2 Large + 3 Small",
-      "result": "not reached (time)",
-      "lower_bound_usd": 466262207.1914839
-    },
-    {
-      "mix": "3 Large + 2 Small",
-      "result": "ruled out",
-      "lower_bound_usd": 509540086.7060818
-    },
-    {
-      "mix": "2 Large + 4 Small",
-      "result": "ruled out",
-      "lower_bound_usd": 539151267.4265962
-    },
-    {
-      "mix": "3 Large + 3 Small",
-      "result": "ruled out",
-      "lower_bound_usd": 582429146.941194
-    },
-    {
-      "mix": "3 Large + 4 Small",
-      "result": "ruled out",
-      "lower_bound_usd": 655318207.1763064
+      "result": "not needed (within gap)",
+      "lower_bound_usd": 458745522.85473794
     }
   ],
   "dropped_candidates": [
@@ -194,10 +168,10 @@
     },
     "mode": "meet_demand",
     "demand_kt": {
-      "PNK": 200.0,
-      "PKN": 800.0,
-      "BPN": 170.0,
-      "TRK": 170.0
+      "PNK": 170,
+      "PKN": 170,
+      "BPN": 170,
+      "TRK": 170
     },
     "refinery_yield": 0.2,
     "depot_yield": 1.0,
