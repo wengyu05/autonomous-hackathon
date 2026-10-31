@@ -180,3 +180,157 @@ export function FlowTable({ data, query, selectedId }: TableProps) {
     </div>
   );
 }
+
+/** Plain table in the same style as the facility and flow tables, for the remaining tabs. */
+function SimpleTable<T>({ caption, rows, columns }: {
+  caption: string;
+  rows: T[];
+  columns: { label: string; numeric?: boolean; cell: (r: T) => React.ReactNode }[];
+}) {
+  return (
+    <div className="max-h-[420px] overflow-auto border border-slate-200">
+      <table className="w-full">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr className="border-b border-slate-200">
+            {columns.map((c) => (
+              <th key={c.label} scope="col" className={`${th} ${c.numeric ? "text-right" : ""}`}>
+                {c.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((r, i) => (
+            <tr key={i} className="hover:bg-slate-50">
+              {columns.map((c) => (
+                <td key={c.label} className={`${td} ${c.numeric ? "text-right tabular-nums" : ""}`}>
+                  {c.cell(r)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const note = "mt-3 text-xs text-slate-500";
+
+/** Costs tab, under the donut: every line of outputs/cost_breakdown.csv (optimised plan only). */
+export function CostItemsTable({ data }: { data: Results }) {
+  const items = data.summary.costItems;
+  if (!items || (data.meta?.scenario ?? "optimised") !== "optimised") {
+    return <p className={note}>The detailed cost breakdown is for the optimised plan. Baseline totals are in the Baselines tab.</p>;
+  }
+  return (
+    <SimpleTable
+      caption="Cost breakdown"
+      rows={items}
+      columns={[
+        { label: "Item", cell: (r) => r.item },
+        { label: "USD", numeric: true, cell: (r) => (r.basis === "USD/t" ? `$${r.usd.toFixed(2)}` : usd(r.usd)) },
+        { label: "Basis", cell: (r) => r.basis },
+      ]}
+    />
+  );
+}
+
+/** Baselines tab: the three plans side by side, with the MILP's saving. */
+export function BaselineTable({ data }: { data: Results }) {
+  const plans = data.meta?.comparisons ?? [];
+  const opt = plans.find((p) => p.id === "optimised");
+  return (
+    <>
+      <SimpleTable
+        caption="Plans compared"
+        rows={plans}
+        columns={[
+          { label: "Plan", cell: (p) => <span className="font-medium text-slate-900">{p.label}</span> },
+          { label: "Cost (USD/yr)", numeric: true, cell: (p) => usd(p.totalCost) },
+          {
+            label: "MILP saves",
+            numeric: true,
+            cell: (p) => (p.id === "optimised" || !opt ? "" : `${num((100 * (p.totalCost - opt.totalCost)) / p.totalCost, 1)}%`),
+          },
+          { label: "USD/t SAF", numeric: true, cell: (p) => usd(p.costPerTonne) },
+          { label: "Refineries", cell: (p) => p.refinerySizes ?? p.refineries },
+          { label: "Depot sites", numeric: true, cell: (p) => p.depotSites },
+        ]}
+      />
+      <p className={note}>
+        All three plans use the same road distances and cost function and pass the same independent checks. Savings are
+        modelled, not measured, and depend on the demand entered.
+      </p>
+    </>
+  );
+}
+
+/** Checks tab: solver result, every independent check, and the refinery mixes the search considered. */
+export function ChecksTab({ data }: { data: Results }) {
+  const m = data.meta;
+  const gap = m?.optimisedGap ?? m?.gap;
+  const secs = m?.optimisedSolveTimeS ?? m?.solveTimeS;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-700">
+        Solver: <b className="text-slate-900">{m?.solver ?? "n/a"}</b> · <b className="text-slate-900">{m?.optimisedStatus ?? m?.status}</b>
+        {gap != null && ` · gap ${(gap * 100).toFixed(2)}%`}
+        {m?.mipGapTarget != null && ` (target ${(m.mipGapTarget * 100).toFixed(1)}%)`}
+        {secs != null && ` · ${Math.round(secs)} s`}
+      </p>
+      <SimpleTable
+        caption="Independent checks"
+        rows={m?.checks ?? []}
+        columns={[
+          { label: "", cell: (c) => <span className={c.pass ? "text-emerald-700" : "text-rose-700"}>{c.pass ? "✓" : "✗"}</span> },
+          { label: "Check", cell: (c) => c.check },
+          { label: "Detail", cell: (c) => <span className="text-xs text-slate-500">{c.detail}</span> },
+        ]}
+      />
+      <p className="text-xs text-slate-500">
+        {Object.entries(m?.baselineChecks ?? {})
+          .map(([n, b]) => `Baseline ${n}: ${b.passed}/${b.total} checks pass`)
+          .join(" · ")}
+      </p>
+      {!!m?.mixSearch?.length && (
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Refinery mixes considered</p>
+          <SimpleTable
+            caption="Refinery mixes considered"
+            rows={m.mixSearch}
+            columns={[
+              { label: "Refinery mix", cell: (r) => r.mix },
+              { label: "Result", cell: (r) => r.result },
+              { label: "Best plan", numeric: true, cell: (r) => (r.objective_usd != null ? usd(r.objective_usd) : "") },
+              { label: "Proven lower bound", numeric: true, cell: (r) => (r.lower_bound_usd != null ? usd(r.lower_bound_usd) : "") },
+            ]}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Assumptions tab: every config.yaml value the plan rests on. */
+export function AssumptionsTable({ data }: { data: Results }) {
+  return (
+    <>
+      <SimpleTable
+        caption="Assumptions"
+        rows={data.meta?.assumptions ?? []}
+        columns={[
+          { label: "ID", cell: (a) => <span className="font-medium text-slate-900">{a.ID}</span> },
+          { label: "Assumption", cell: (a) => a.Assumption },
+          { label: "Value", cell: (a) => a.Value },
+          { label: "Note", cell: (a) => <span className="text-xs text-slate-500">{a.Note}</span> },
+        ]}
+      />
+      <p className={note}>
+        Every value here is an assumption from config.yaml, not given by the organisers. Facility costs, capacities and
+        transport rates are the brief&apos;s figures.
+      </p>
+    </>
+  );
+}

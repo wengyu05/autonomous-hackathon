@@ -6,13 +6,17 @@ import type { Results, ScenarioOption } from "./types";
 // Fallback when scenarios.json is missing: just the default results file.
 const DEFAULT_SCENARIOS: ScenarioOption[] = [{ id: "optimised", label: "Optimised plan", file: "/data/results.json" }];
 
-/** Loads the scenario list once, then the selected scenario's JSON whenever the choice changes. */
+/**
+ * Loads the scenario list once, then the selected scenario's JSON whenever the choice changes.
+ * `reload()` fetches the files again, e.g. after a solve has rewritten them.
+ */
 export function useResults() {
   const [scenarios, setScenarios] = useState<ScenarioOption[]>(DEFAULT_SCENARIOS);
   const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIOS[0].id);
   const [data, setData] = useState<Results | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     fetch("/data/scenarios.json")
@@ -31,7 +35,7 @@ export function useResults() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(file)
+    fetch(version ? `${file}?v=${version}` : file, { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error(`Could not load ${file} (HTTP ${r.status})`);
         return r.json();
@@ -47,7 +51,8 @@ export function useResults() {
     return () => {
       cancelled = true;
     };
-  }, [file]);
+  }, [file, version]);
 
-  return { scenarios, scenarioId, setScenarioId, data, error, loading, file };
+  const reload = () => setVersion((v) => v + 1);
+  return { scenarios, scenarioId, setScenarioId, data, error, loading, file, reload };
 }

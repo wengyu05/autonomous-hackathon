@@ -12,6 +12,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Font Awesome 6.2.0: the plane and factory icons the Streamlit map (folium) uses. */}
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" />
+      </head>
       <body className={`${inter.variable} font-sans`}>{children}</body>
     </html>
   );

@@ -1,6 +1,6 @@
 import type { KpiCardProps } from "@/components/KpiCard";
 import type { PlanComparison, Results } from "./types";
-import { num, pctChange, usdM } from "./format";
+import { num, pctChange, usdM, usdShort } from "./format";
 
 /** Plain-text solver status: "Optimal" only when proven, otherwise the remaining gap. */
 export function statusText(d: Results): string {
@@ -35,10 +35,10 @@ function costTrend(value: number, ref?: PlanComparison, refValue?: number): Pick
   };
 }
 
+/** The Streamlit app's five headline numbers, in its order, each compared with the reference plan. */
 export function buildKpis(d: Results): KpiCardProps[] {
   const s = d.summary;
   const ref = referencePlan(d);
-  const demand = d.airports.reduce((t, a) => t + a.demandKt, 0);
   const refineryUnits = d.refineries.reduce((t, r) => t + (r.units ? countUnits(r.units) : 1), 0);
   const isOptimised = (d.meta?.scenario ?? "optimised") === "optimised";
 
@@ -51,23 +51,30 @@ export function buildKpis(d: Results): KpiCardProps[] {
       note: isOptimised && d.meta?.status !== "Optimal" ? statusText(d) : undefined,
     },
     {
-      label: "SAF delivered",
-      value: num(s.safDelivered),
-      unit: "kt/yr",
-      trendText: `Demand: ${num(demand)} kt/yr`,
-      trend: "neutral",
-    },
-    {
-      label: "Facilities",
-      value: `${d.depots.length} depots · ${refineryUnits} refineries`,
-      trendText: ref ? `${shortName(ref)}: ${ref.depotSites} depots · ${ref.refineries} refineries` : "",
-      trend: "neutral",
-    },
-    {
       label: "Cost per tonne SAF",
       value: `$${num(s.costPerTonne)}`,
       unit: "/t",
       ...costTrend(s.costPerTonne, ref, ref?.costPerTonne),
+    },
+    {
+      label: "One-time CapEx",
+      value: usdShort(s.capexOneTime ?? 0),
+      ...costTrend(s.capexOneTime ?? 0, ref, ref?.capexOneTime),
+    },
+    {
+      label: "Trucking",
+      value: usdM(s.logistics),
+      unit: "per year",
+      ...costTrend(s.logistics, ref, ref?.logistics),
+    },
+    {
+      label: "Refineries · depots",
+      value: `${refineryUnits} · ${d.depots.length}`,
+      unit: "sites",
+      trendText: ref
+        ? `${shortName(ref)}: ${ref.refineries} ${ref.refineries === 1 ? "refinery" : "refineries"} · ${ref.depotSites} depots`
+        : "",
+      trend: "neutral",
     },
   ];
 }

@@ -83,3 +83,47 @@ body {
 .marker-airport.is-selected .pin {
   background: #0f172a;
 }
+
+/* ---------- Streamlit map markers (NetworkMap) ---------- */
+
+/* Map pins drawn like folium's AwesomeMarkers: a coloured teardrop with a white icon. */
+.pin-marker {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 1px solid rgb(0 0 0 / 0.25);
+  box-shadow: 1px 2px 4px rgb(0 0 0 / 0.35);
+}
+.pin-marker i {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform: rotate(45deg);
+  color: #fff;
+  font-size: 13px;
+}
+.pin-gray { background: #575757; }
+.pin-black { background: #303030; }
+.pin-red { background: #d33d2a; }
+.pin-marker.is-selected { outline: 2px solid #0f172a; outline-offset: 2px; }
+
+/* Depot: white diamond with a dark edge. */
+.depot-diamond {
+  background: #fff;
+  border: 2px solid #0b0b0b;
+  transform: rotate(45deg);
+}
+.depot-diamond.is-selected { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+/* Direction arrow along a route, rotated to the road's heading. */
+.route-arrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid currentColor;
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
+}
