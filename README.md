@@ -32,6 +32,24 @@ default demand).
 Outputs land in `outputs/`: `solution.json`, `facilities.csv`, `flows.csv`, `cost_breakdown.csv`,
 `verification.json`.
 
+### Solver API and web dashboard
+
+```bash
+.venv/bin/uvicorn api:app --reload --port 8000   # FastAPI solver backend, docs at http://localhost:8000/docs
+.venv/bin/python -m src.export_web               # refresh web/public/data/*.json from outputs/
+cd web && npm install && npm run dev             # Next.js dashboard at http://localhost:3000
+```
+
+`api.py` endpoints: `GET /api/health`, `GET /api/config` (airports, default demand, feasibility limit),
+`GET /api/scenarios`, `GET /api/results/{optimised|b1|b2}`, and `POST /api/solve` with
+`{"demandKt": {"PNK": 200, ...}, "timeLimitS": 60}`. A solve runs the same pipeline as the Streamlit app
+(feasibility gate, MILP, baselines, independent verifier), returns the plan in the dashboard's JSON
+contract and rewrites `web/public/data/`. Over-limit or invalid demand returns 422 without calling the
+solver; a second solve while one is running returns 409.
+
+The Next.js dashboard (`web/`) reads static JSON from `web/public/data/`, so it runs without the API. See
+`web/README.md`.
+
 ## Truck distances
 
 Every truck route uses real road distance from OpenStreetMap, routed by the public OSRM server
