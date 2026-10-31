@@ -1,7 +1,11 @@
-# SAF Supply Chain Report: Kalimantan (web dashboard)
+# Kalimantan SAF Planner (web dashboard)
 
-Next.js + TypeScript + Tailwind dashboard for the SAF supply chain optimiser. It reads static JSON
-from `public/data/`, so it runs with no backend.
+Next.js + TypeScript + Tailwind dashboard for the SAF supply chain optimiser. It has the same layout
+and information as the Streamlit app (`app.py`): airport demand inputs and Solve on the left; title,
+solver status and headline costs at the top; the road-route map beside seven data tabs.
+
+It reads static JSON from `public/data/`, so it shows the saved plans with no backend. To re-solve
+from the dashboard, also run the FastAPI backend.
 
 ## Run
 
@@ -10,6 +14,15 @@ cd web
 npm install
 npm run dev          # http://localhost:3000
 ```
+
+To make **Solve** work, start the backend from the project root in another terminal:
+
+```bash
+.venv/bin/uvicorn api:app --port 8000
+```
+
+If the backend is not running, the sidebar says the solver is offline and the page keeps showing the
+saved plans. Set `NEXT_PUBLIC_API_URL` to use a backend somewhere other than `http://localhost:8000`.
 
 ## Data
 
@@ -20,7 +33,7 @@ npm run dev          # http://localhost:3000
 | `results.json` | Optimised plan (MILP) |
 | `results_b1.json` | Baseline B1: one central refinery |
 | `results_b2.json` | Baseline B2: refinery at every airport |
-| `scenarios.json` | Entries for the scenario dropdown (`id`, `label`, `file`) |
+| `scenarios.json` | The plans listed under "Plan on the map" (`id`, `label`, `file`) |
 
 These are generated from the optimiser outputs, not hand-written. To refresh them after a new solve,
 run from the project root:
@@ -29,21 +42,21 @@ run from the project root:
 .venv/bin/python -m src.export_web
 ```
 
-`POST /api/solve` on the FastAPI backend (`api.py` at the project root) re-solves for new airport demand
-and rewrites these files too. To add a sensitivity scenario, drop another file with the same shape
-into `public/data/` and add a line to `scenarios.json`.
+`POST /api/solve` on the backend re-solves for new airport demand and rewrites these files; the page
+then reloads them.
 
 ## Layout
 
 | Component | What it shows |
 |---|---|
-| `Sidebar` | Slim icon rail (horizontal bar on mobile) linking to each section |
-| `Header` | Title, table search, scenario dropdown, data download |
-| `KpiCard` | Total cost, SAF delivered, facilities, cost per tonne, each compared with another plan |
-| `NetworkMap` | Leaflet map (client-only via `NetworkMapLoader`): biomass sites, depots, refineries, airports and flows along real roads. Toggle layers in the legend; click a node to highlight its flows |
-| `AirportList` | SAF delivered per airport against demand |
-| `CostChart` | Annual cost donut and logistics by leg |
-| `Tables` | Facility table and sortable, filterable flow table |
+| `Sidebar` | Airport SAF demand boxes (with −/+), solver time limit, Solve, the 1,360 kt feasibility limit, and the "Plan on the map" switch |
+| `Header` | Title, description, and the solver status banner (status, gap, solve time, independent checks, demand) |
+| `KpiCard` | The five headline numbers: total cost per year, cost per tonne of SAF, one-time CapEx, trucking per year, refinery · depot sites. Baselines show how much more they cost than the optimised plan |
+| `NetworkMap` | Leaflet map (client-only via `NetworkMapLoader`) on OpenStreetMap tiles, with the Streamlit map's markers: biomass sites (filled if used, red ring if in the sea), depot diamonds, refinery and airport pins. Routes follow real roads, coloured by leg, width ∝ kt/yr, with arrows showing the direction the trucks drive. Layer switch top right; click a site to highlight its routes |
+| `DataTabs` | The seven tabs beside the map: Airports, Facilities, Costs, Routes, Baselines, Checks, Assumptions |
+| `AirportList` | Airports tab: demand, delivered, supplying refineries and average road km per airport |
+| `CostChart` | Costs tab: annual cost bars and the full cost breakdown |
+| `Tables` | Facilities, Routes, Baselines, Checks (with the refinery mixes searched) and Assumptions tabs |
 
-The status badge shows the solver result honestly: "Optimal" only when proven, otherwise
-"Feasible" with the remaining optimality gap.
+The status banner shows the solver result honestly: "Optimal" only when proven, otherwise the
+remaining optimality gap.

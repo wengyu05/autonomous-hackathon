@@ -5,6 +5,13 @@ export function usdM(v: number, digits = 1): string {
   return `$${(v / 1e6).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}M`;
 }
 
+/** USD as $M, or $B from a billion up, e.g. "$216.8M", "$1.01B" (the Streamlit app's money()). */
+export function usdShort(v: number): string {
+  return Math.abs(v) >= 1e9
+    ? `$${(v / 1e9).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}B`
+    : usdM(v);
+}
+
 /** Plain USD with thousands separators. */
 export function usd(v: number): string {
   return `$${Math.round(v).toLocaleString("en-US")}`;

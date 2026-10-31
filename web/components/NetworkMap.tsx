@@ -4,27 +4,30 @@
 // next/dynamic({ ssr: false }); see NetworkMapLoader.tsx.
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useMemo, useState } from "react";
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
-import { Minus, Plus } from "lucide-react";
-import type { Airport, Facility, Flow, Leg, Results } from "@/lib/types";
+import { Fragment, useMemo, useState } from "react";
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMapEvents } from "react-leaflet";
+import type { Facility, Flow, Leg, Results } from "@/lib/types";
 import { LEG_STYLE } from "@/lib/legs";
 import { coords, num } from "@/lib/format";
 
-const KALIMANTAN_CENTER: [number, number] = [-0.6, 113.6];
+const KALIMANTAN_CENTER: [number, number] = [-0.5, 113.4];
+const INK = "#0b0b0b";
+const INK_2 = "#52514e";
+const CRITICAL = "#d03b2f";
+/** One direction arrow per this many km of route, and at least one per route. */
+const ARROW_SPACING_KM = 120;
 
-// lucide "plane" path, inlined because Leaflet divIcons take an HTML string.
-const PLANE_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>';
+type LayerKey = Leg | "farms" | "depots" | "refineries" | "airports";
 
-type LayerKey = "farms" | "depots" | "refineries" | "airports" | "flows";
-
-const LAYERS: { key: LayerKey; label: string; swatch: string }[] = [
-  { key: "farms", label: "Biomass sites", swatch: "h-2.5 w-2.5 rounded-full bg-slate-400" },
-  { key: "depots", label: "Depots", swatch: "h-2.5 w-2.5 bg-green-700" },
-  { key: "refineries", label: "Refineries", swatch: "h-3 w-3 rounded-full bg-green-900" },
-  { key: "airports", label: "Airports", swatch: "h-3 w-3 rounded-sm bg-[#1e3a5f]" },
-  { key: "flows", label: "Flows", swatch: "h-0.5 w-4 bg-slate-600" },
+// Same groups as the Streamlit map's layer control.
+const LAYERS: { key: LayerKey; label: string }[] = [
+  { key: "farm_depot", label: `Routes: ${LEG_STYLE.farm_depot.label}` },
+  { key: "depot_refinery", label: `Routes: ${LEG_STYLE.depot_refinery.label}` },
+  { key: "refinery_airport", label: `Routes: ${LEG_STYLE.refinery_airport.label}` },
+  { key: "farms", label: "Biomass sites (80)" },
+  { key: "depots", label: "Depots" },
+  { key: "refineries", label: "Refineries" },
+  { key: "airports", label: "Airports (4)" },
 ];
 
 interface NetworkMapProps {
@@ -33,44 +36,84 @@ interface NetworkMapProps {
   onSelect: (id: string | null) => void;
 }
 
-/** Tooltip body shared by depots and refineries. */
-function FacilityTip({ f, kind }: { f: Facility; kind: "Depot" | "Refinery" }) {
-  return (
-    <div className="space-y-0.5 text-xs">
-      <p className="text-sm font-semibold">
-        {kind} at {f.site ?? f.id}
-      </p>
-      <p className="text-slate-500">{coords(f.lat, f.lng)}</p>
-      <p>
-        Size: <b>{f.units ?? f.size}</b> · capacity {num(f.capacityKt)} kt{kind === "Refinery" ? " SAF/yr" : " biomass/yr"}
-      </p>
-      <p>
-        Throughput: <b>{num(f.throughputKt, 1)} kt</b> biomass in
-        {kind === "Refinery" && f.outputKt != null && <> · {num(f.outputKt, 1)} kt SAF out</>}
-      </p>
-      {f.utilisationPct != null && (
-        <p>
-          Utilisation: <b>{num(f.utilisationPct)}%</b>
-        </p>
-      )}
-          </div>
-  );
+/** Site name without the D-/R- prefix the JSON uses for depot and refinery IDs. */
+const siteOf = (id: string) => id.replace(/^[DR]-/, "");
+
+/** "1 Large + 1 Small" -> 2. */
+function unitCount(units?: string): number {
+  return [...(units ?? "").matchAll(/(\d+)\s+(Small|Large)/g)].reduce((t, m) => t + Number(m[1]), 0) || 1;
 }
 
-/** Custom +/- buttons at the bottom right, styled to match the dashboard. */
-function ZoomButtons() {
-  const map = useMap();
-  const btn = "grid h-9 w-9 place-items-center bg-white text-slate-700 hover:bg-slate-50";
+function km(a: [number, number], b: [number, number]): number {
+  const r = Math.PI / 180;
+  const h = Math.sin(((b[0] - a[0]) * r) / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(((b[1] - a[1]) * r) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+
+/** Screen heading (degrees clockwise from north) of a segment on a Web Mercator map. */
+function heading(a: [number, number], b: [number, number]): number {
+  const y = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+  return (Math.atan2(((b[1] - a[1]) * Math.PI) / 180, y(b[0]) - y(a[0])) * 180) / Math.PI;
+}
+
+/** Evenly spaced points along a path, each with the direction of travel at that point. */
+function arrowsAlong(path: [number, number][]): { at: [number, number]; deg: number }[] {
+  const seg = path.slice(1).map((p, i) => km(path[i], p));
+  const total = seg.reduce((t, d) => t + d, 0);
+  if (total < 1) return [];
+  const n = Math.max(1, Math.floor(total / ARROW_SPACING_KM));
+  const out: { at: [number, number]; deg: number }[] = [];
+  for (let k = 0; k < n; k++) {
+    let want = ((k + 0.5) * total) / n;
+    let i = 0;
+    while (i < seg.length - 1 && want > seg[i]) want -= seg[i++];
+    const t = seg[i] > 0 ? want / seg[i] : 0;
+    const [a, b] = [path[i], path[i + 1]];
+    out.push({ at: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])], deg: heading(a, b) });
+  }
+  return out;
+}
+
+/** Folium-style map pin: a coloured teardrop with a white Font Awesome icon. */
+const pinIcon = (colour: "gray" | "black" | "red", icon: string, selected: boolean) =>
+  L.divIcon({
+    className: "",
+    html: `<div class="pin pin-${colour}${selected ? " is-selected" : ""}"><i class="fa fa-${icon}"></i></div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 36],
+  });
+
+const arrowIcon = (colour: string, deg: number) =>
+  L.divIcon({
+    className: "",
+    html: `<div class="route-arrow" style="color:${colour};transform:rotate(${deg.toFixed(1)}deg)"></div>`,
+    iconSize: [10, 9],
+    iconAnchor: [5, 4.5],
+  });
+
+function FacilityTip({ f, kind }: { f: Facility; kind: "Depot" | "Refinery" }) {
   return (
-    <div className="absolute bottom-4 right-4 z-[1000] flex flex-col overflow-hidden rounded border border-slate-300">
-      <button type="button" aria-label="Zoom in" className={btn} onClick={() => map.zoomIn()}>
-        <Plus className="h-4 w-4" aria-hidden />
-      </button>
-      <span className="h-px bg-slate-200" aria-hidden />
-      <button type="button" aria-label="Zoom out" className={btn} onClick={() => map.zoomOut()}>
-        <Minus className="h-4 w-4" aria-hidden />
-      </button>
-    </div>
+    <>
+      <b>
+        {kind} · {f.site ?? siteOf(f.id)}
+      </b>
+      <br />
+      {f.units ?? f.size} ({num(f.capacityKt)} kt{kind === "Refinery" ? " capacity" : ""})
+      <br />
+      {kind === "Refinery" ? (
+        <>
+          {num(f.throughputKt, 1)} kt biomass in → {num(f.outputKt ?? 0, 1)} kt SAF
+          <br />
+          {num(f.utilisationPct ?? 0)}% used
+        </>
+      ) : (
+        <>
+          {num(f.throughputKt, 1)} kt in · {num(f.utilisationPct ?? 0)}% used
+        </>
+      )}
+      <br />
+      {coords(f.lat, f.lng)}
+    </>
   );
 }
 
@@ -81,13 +124,10 @@ function ClearOnMapClick({ onClear }: { onClear: () => void }) {
 }
 
 export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapProps) {
-  const [visible, setVisible] = useState<Record<LayerKey, boolean>>({
-    farms: true,
-    depots: true,
-    refineries: true,
-    airports: true,
-    flows: true,
-  });
+  const [visible, setVisible] = useState<Record<LayerKey, boolean>>(
+    Object.fromEntries(LAYERS.map((l) => [l.key, true])) as Record<LayerKey, boolean>,
+  );
+  const [layersOpen, setLayersOpen] = useState(false);
 
   // id -> [lat, lng] for every node, for flows that carry no road path.
   const nodes = useMemo(() => {
@@ -96,22 +136,32 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
     return m;
   }, [data]);
 
-  // Line width scales with tonnage, relative to the busiest flow on the same leg.
-  const maxByLeg = useMemo(() => {
-    const m: Record<Leg, number> = { farm_depot: 1, depot_refinery: 1, refinery_airport: 1 };
-    for (const f of data.flows) m[f.leg] = Math.max(m[f.leg], f.tonnes);
+  // As in the Streamlit map: line width scales with kt against the busiest flow on any leg.
+  const maxTonnes = useMemo(() => Math.max(1, ...data.flows.map((f) => f.tonnes)), [data]);
+
+  const used = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of data.flows) if (f.leg === "farm_depot") m.set(f.from, (m.get(f.from) ?? 0) + f.tonnes / 1000);
     return m;
   }, [data]);
 
-  const maxSupply = useMemo(() => Math.max(1, ...data.farms.map((f) => f.supplyKt)), [data]);
+  const delivered = useMemo(() => new Map(data.airports.map((a) => [a.id, a.deliveredKt])), [data]);
+
+  const routes = useMemo(
+    () =>
+      data.flows
+        .map((f, i) => {
+          const a = nodes.get(f.from);
+          const b = nodes.get(f.to);
+          if (!a || !b || f.distanceKm === 0) return null; // co-located: no truck leg to draw
+          const path = f.path ?? [a, b];
+          return { f, i, path, arrows: arrowsAlong(path) };
+        })
+        .filter((r): r is { f: Flow; i: number; path: [number, number][]; arrows: { at: [number, number]; deg: number }[] } => r !== null),
+    [data, nodes],
+  );
 
   const isConnected = (f: Flow) => selectedId != null && (f.from === selectedId || f.to === selectedId);
-
-  // Highlighted flows go last so they draw on top of the rest.
-  const orderedFlows = data.flows
-    .map((f, i) => ({ f, i, on: isConnected(f) }))
-    .sort((a, b) => Number(a.on) - Number(b.on));
-
   const select = (id: string) => ({
     click: (e: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(e);
@@ -119,136 +169,111 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
     },
   });
 
-  const squareIcon = (cls: string, s: number) =>
-    L.divIcon({ className: "", html: `<div class="${cls}" style="width:${s}px;height:${s}px"></div>`, iconSize: [s, s] });
-
-  const depotIcon = (d: Facility) =>
-    squareIcon(`marker-depot${selectedId === d.id ? " is-selected" : ""}`, d.size === "Large" ? 11 : 8);
-
-  const refineryIcon = (r: Facility) =>
-    squareIcon(`marker-refinery${selectedId === r.id ? " is-selected" : ""}`, r.size === "Large" ? 18 : 14);
-
-  const airportIcon = (a: Airport) =>
-    L.divIcon({
-      className: "",
-      html: `<div class="marker-airport${selectedId === a.id ? " is-selected" : ""}"><span class="pin">${PLANE_SVG}</span><span class="label">${a.name}</span></div>`,
-      iconSize: [22, 22],
-      iconAnchor: [11, 11],
-    });
-
   return (
-    <div className="relative h-full min-h-[420px] overflow-hidden border border-slate-200">
-      <MapContainer
-        center={KALIMANTAN_CENTER}
-        zoom={6}
-        minZoom={5}
-        zoomControl={false}
-        scrollWheelZoom={false}
-        className="h-full w-full"
-        aria-label="Map of the SAF supply network in Kalimantan"
-      >
-        {/* Esri light-grey canvas: minimal, keyless basemap, with place names on a separate layer. */}
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-line">
+      <MapContainer center={KALIMANTAN_CENTER} zoom={6} minZoom={4} className="h-full w-full" aria-label="Map of the SAF supply network in Kalimantan">
         <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          attribution="Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors · routes: OSRM"
-          maxNativeZoom={16}
-        />
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
-          maxNativeZoom={16}
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · routes: OSRM'
+          maxZoom={19}
         />
         <ClearOnMapClick onClear={() => onSelect(null)} />
 
-        {visible.flows &&
-          orderedFlows.map(({ f, i, on }) => {
-            const a = nodes.get(f.from);
-            const b = nodes.get(f.to);
-            if (!a || !b || f.distanceKm === 0) return null; // co-located legs have nothing to draw
-            const dim = selectedId != null && !on;
-            const weight = 1 + 4.5 * Math.sqrt(f.tonnes / maxByLeg[f.leg]);
-            return (
-              <Polyline
-                // Key includes the highlight state so Leaflet re-orders the line when it changes.
-                key={`${i}-${on}`}
-                positions={f.path ?? [a, b]}
-                pathOptions={{
-                  color: LEG_STYLE[f.leg].color,
-                  weight: on ? weight + 2 : weight,
-                  opacity: dim ? 0.08 : on ? 0.95 : 0.7,
-                  lineCap: "round",
-                  lineJoin: "round",
-                }}
-              >
+        {routes.map(({ f, i, path, arrows }) => {
+          if (!visible[f.leg]) return null;
+          const { color, label } = LEG_STYLE[f.leg];
+          const on = isConnected(f);
+          const dim = selectedId != null && !on;
+          const weight = 1.5 + 6 * Math.sqrt(f.tonnes / maxTonnes);
+          return (
+            <Fragment key={`${i}-${on}`}>
+              <Polyline positions={path} pathOptions={{ color, weight: on ? weight + 2 : weight, opacity: dim ? 0.1 : 0.8 }}>
                 <Tooltip sticky className="saf-tooltip">
-                  <div className="space-y-0.5 text-xs">
-                    <p className="font-semibold">{LEG_STYLE[f.leg].label}</p>
-                    <p>
-                      {f.from} → {f.to}
-                    </p>
-                    <p>
-                      {num(f.tonnes)} t/yr · {num(f.distanceKm)} road km · ${num(f.cost)}/yr
-                    </p>
-                  </div>
+                  <b>{label}</b>
+                  <br />
+                  {siteOf(f.from)} → {siteOf(f.to)}
+                  <br />
+                  {num(f.tonnes / 1000, 1)} kt/yr · {num(f.distanceKm)} road km
+                  <br />${num(f.cost / 1e6, 2)}M/yr · {num(f.trucksLarge ?? 0)} large-truck trips/yr
                 </Tooltip>
               </Polyline>
+              {!dim &&
+                arrows.map((a, k) => (
+                  <Marker key={k} position={a.at} icon={arrowIcon(color, a.deg)} interactive={false} keyboard={false} />
+                ))}
+            </Fragment>
+          );
+        })}
+
+        {visible.farms &&
+          data.farms.map((s) => {
+            const u = used.get(s.id) ?? 0;
+            return (
+              <CircleMarker
+                key={s.id}
+                center={[s.lat, s.lng]}
+                radius={3 + Math.sqrt(s.supplyKt) * 0.55}
+                pathOptions={{
+                  color: s.offshore ? CRITICAL : INK_2,
+                  weight: s.offshore ? 2 : 1,
+                  fillColor: INK_2,
+                  fillOpacity: u > 0 ? 0.85 : 0.12,
+                }}
+                eventHandlers={select(s.id)}
+              >
+                <Tooltip className="saf-tooltip">
+                  <b>{s.id}</b> · {s.name?.split(",")[0]}
+                  <br />
+                  {num(s.supplyKt, 1)} kt/yr available
+                  <br />
+                  {u > 0 ? `Used: ${num(u, 1)} kt` : "Not used in this plan"}
+                  {s.offshore && (
+                    <>
+                      <br />
+                      <b style={{ color: CRITICAL }}>In the sea ({num(s.coastKm ?? 0)} km off the coast): supply only</b>
+                    </>
+                  )}
+                </Tooltip>
+              </CircleMarker>
             );
           })}
 
-        {visible.farms &&
-          data.farms.map((f) => (
-            <CircleMarker
-              key={f.id}
-              center={[f.lat, f.lng]}
-              radius={2.5 + 5 * Math.sqrt(f.supplyKt / maxSupply)}
-              pathOptions={{
-                color: selectedId === f.id ? "#334155" : "#ffffff",
-                weight: selectedId === f.id ? 2 : 1,
-                fillColor: "#a8a29e",
-                fillOpacity: 0.9,
-              }}
-              eventHandlers={select(f.id)}
-            >
-              <Tooltip className="saf-tooltip">
-                <div className="space-y-0.5 text-xs">
-                  <p className="text-sm font-semibold">Biomass site {f.id}</p>
-                  {f.name && <p>{f.name}</p>}
-                  <p className="text-slate-500">{coords(f.lat, f.lng)}</p>
-                  <p>
-                    Supply: <b>{num(f.supplyKt, 1)} kt/yr</b>
-                  </p>
-                </div>
-              </Tooltip>
-            </CircleMarker>
-          ))}
-
         {visible.depots &&
-          data.depots.map((d) => (
-            <Marker
-              key={`${d.id}-${selectedId === d.id}`}
-              position={[d.lat, d.lng]}
-              icon={depotIcon(d)}
-              eventHandlers={select(d.id)}
-              title={`Depot at ${d.site ?? d.id}`}
-              alt={`Depot at ${d.site ?? d.id}`}
-            >
-              <Tooltip className="saf-tooltip">
-                <FacilityTip f={d} kind="Depot" />
-              </Tooltip>
-            </Marker>
-          ))}
+          data.depots.map((d) => {
+            const side = Math.round((6 + 2 * unitCount(d.units)) * 1.25);
+            return (
+              <Marker
+                key={`${d.id}-${selectedId === d.id}`}
+                position={[d.lat, d.lng]}
+                icon={L.divIcon({
+                  className: "",
+                  html: `<div class="depot-diamond${selectedId === d.id ? " is-selected" : ""}" style="width:${side}px;height:${side}px"></div>`,
+                  iconSize: [side, side],
+                  iconAnchor: [side / 2, side / 2],
+                })}
+                eventHandlers={select(d.id)}
+                title={`Depot at ${d.site ?? siteOf(d.id)}`}
+                alt={`Depot at ${d.site ?? siteOf(d.id)}`}
+              >
+                <Tooltip className="saf-tooltip">
+                  <FacilityTip f={d} kind="Depot" />
+                </Tooltip>
+              </Marker>
+            );
+          })}
 
         {visible.refineries &&
           data.refineries.map((r) => (
             <Marker
               key={`${r.id}-${selectedId === r.id}`}
               position={[r.lat, r.lng]}
-              icon={refineryIcon(r)}
+              icon={pinIcon("black", "industry", selectedId === r.id)}
               eventHandlers={select(r.id)}
               zIndexOffset={500}
-              title={`Refinery at ${r.site ?? r.id}`}
-              alt={`Refinery at ${r.site ?? r.id}`}
+              title={`Refinery at ${r.site ?? siteOf(r.id)}`}
+              alt={`Refinery at ${r.site ?? siteOf(r.id)}`}
             >
-              <Tooltip className="saf-tooltip">
+              <Tooltip className="saf-tooltip" direction="top" offset={[0, -30]}>
                 <FacilityTip f={r} kind="Refinery" />
               </Tooltip>
             </Marker>
@@ -259,60 +284,85 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
             <Marker
               key={`${a.id}-${selectedId === a.id}`}
               position={[a.lat, a.lng]}
-              icon={airportIcon(a)}
+              icon={pinIcon(a.island ? "red" : "gray", "plane", selectedId === a.id)}
               eventHandlers={select(a.id)}
               zIndexOffset={1000}
               title={a.name}
               alt={a.name}
             >
-              <Tooltip className="saf-tooltip" direction="top" offset={[0, -11]}>
-                <div className="space-y-0.5 text-xs">
-                  <p className="text-sm font-semibold">
-                    {a.name} ({a.id})
-                  </p>
-                  <p className="text-slate-500">{coords(a.lat, a.lng)}</p>
-                  <p>
-                    Delivered: <b>{num(a.deliveredKt, 1)} kt</b> of {num(a.demandKt)} kt demand
-                  </p>
-                </div>
+              <Tooltip className="saf-tooltip" direction="top" offset={[0, -30]}>
+                <b>
+                  {a.name} ({a.id})
+                </b>
+                <br />
+                {a.city}
+                <br />
+                {num(delivered.get(a.id) ?? 0, 1)} kt SAF/yr delivered
+                {a.island && (
+                  <>
+                    <br />
+                    <b style={{ color: CRITICAL }}>
+                      On an island: routes use the ferry,
+                      <br />
+                      priced at the truck rate.
+                    </b>
+                  </>
+                )}
               </Tooltip>
             </Marker>
           ))}
-
-        <ZoomButtons />
       </MapContainer>
 
-      {/* Flow colour key, top left. */}
-      <div className="pointer-events-none absolute left-4 top-4 z-[1000] space-y-1 rounded bg-white/95 px-2.5 py-2 text-[11px] text-slate-600 ring-1 ring-slate-200">
+      {/* Layer switch, top right, like the Streamlit map's layer control. */}
+      <div className="absolute right-3 top-3 z-[1000]">
+        <button
+          type="button"
+          aria-label="Map layers"
+          aria-expanded={layersOpen}
+          onClick={() => setLayersOpen((o) => !o)}
+          className="grid h-11 w-11 place-items-center rounded border-2 border-black/20 bg-white text-ink-2 hover:bg-page"
+        >
+          <i className="fa fa-layer-group" aria-hidden />
+        </button>
+        {layersOpen && (
+          <div className="mt-1 w-64 space-y-1 rounded border-2 border-black/20 bg-white p-2.5 text-xs text-ink">
+            {LAYERS.map((l) => (
+              <label key={l.key} className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visible[l.key]}
+                  onChange={() => setVisible((v) => ({ ...v, [l.key]: !v[l.key] }))}
+                  className="accent-brand"
+                />
+                {l.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Legend, bottom left, matching the Streamlit map. */}
+      <div className="pointer-events-none absolute bottom-6 left-2.5 z-[1000] rounded-md bg-white/95 px-2.5 py-1.5 text-[11.5px] leading-[1.55] text-ink shadow">
         {Object.values(LEG_STYLE).map((s) => (
-          <p key={s.label} className="flex items-center gap-2">
-            <span className="h-0.5 w-5" style={{ background: s.color }} aria-hidden />
+          <p key={s.label} className="flex items-center">
+            <span className="mr-1.5 inline-block h-1 w-[18px] rounded-sm" style={{ background: s.color }} aria-hidden />
             {s.label}
           </p>
         ))}
-        <p className="pt-0.5 text-slate-500">Line width ∝ tonnes</p>
-      </div>
-
-      {/* Toggleable legend pill, bottom left. */}
-      <div
-        role="group"
-        aria-label="Map layers"
-        className="absolute bottom-4 left-4 z-[1000] flex max-w-[calc(100%-5.5rem)] flex-wrap items-center gap-0.5 rounded bg-white/95 p-1 ring-1 ring-slate-200"
-      >
-        {LAYERS.map((l) => (
-          <button
-            key={l.key}
-            type="button"
-            aria-pressed={visible[l.key]}
-            onClick={() => setVisible((v) => ({ ...v, [l.key]: !v[l.key] }))}
-            className={`flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs ${
-              visible[l.key] ? "text-slate-800" : "text-slate-400 line-through"
-            }`}
-          >
-            <span className={l.swatch} aria-hidden />
-            {l.label}
-          </button>
-        ))}
+        <p className="text-ink-2">Road routes · width ∝ kt/yr · arrows show truck direction</p>
+        <p>
+          <i className="fa fa-industry" aria-hidden /> Refinery&nbsp;&nbsp;
+          <span className="mx-1 inline-block h-2 w-2 rotate-45 border-2" style={{ borderColor: INK }} aria-hidden /> Depot&nbsp;&nbsp;
+          <i className="fa fa-plane" aria-hidden /> Airport
+        </p>
+        <p className="flex items-center gap-1">
+          <span className="inline-block h-[9px] w-[9px] rounded-full" style={{ background: INK_2 }} aria-hidden />
+          Biomass used&nbsp;
+          <span className="inline-block h-[9px] w-[9px] rounded-full border" style={{ borderColor: INK_2 }} aria-hidden />
+          unused&nbsp;
+          <span className="inline-block h-[9px] w-[9px] rounded-full border-2" style={{ borderColor: CRITICAL }} aria-hidden />
+          in the sea
+        </p>
       </div>
     </div>
   );

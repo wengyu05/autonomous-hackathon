@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.load_data import ROOT, load_airports, load_config
+from src.load_data import ROOT, load_airports, load_biomass, load_config
+from src.plan_map import assumptions_table
 from src.roads import key
 
 OUT = ROOT / "outputs"
@@ -26,9 +27,10 @@ class NoPlan(Exception):
     """outputs/ has no usable optimised plan (never solved, or the last solve failed)."""
 
 
-def _build(fac, flows, summary, meta, farms_df, airport_names, airport_xy, demand, routes):
-    farms = [{"id": r.location_id, "name": f"{r.district}, {r.province}", "lat": r.latitude,
-              "lng": r.longitude, "supplyKt": r.production_kilotons} for r in farms_df.itertuples()]
+def _build(fac, flows, summary, meta, farms_df, airport_names, airport_xy, demand, routes, airport_info):
+    farms = [{"id": r.id, "name": f"{r.district}, {r.province}", "lat": r.lat, "lng": r.lon, "supplyKt": r.kt,
+              "offshore": bool(r.offshore), "coastKm": None if pd.isna(r.coast_km) else float(r.coast_km)}
+             for r in farms_df.itertuples()]
 
     def facilities(kind):
         return [{"id": f"{PREFIX[kind]}-{r.site_id}", "site": r.site_id, "lat": round(r.lat, 5), "lng": round(r.lon, 5),
@@ -41,7 +43,8 @@ def _build(fac, flows, summary, meta, farms_df, airport_names, airport_xy, deman
 
     delivered = flows[flows.leg == "refinery_to_airport"].groupby("to_id").kt.sum()
     airports = [{"id": code, "name": airport_names[code], "lat": airport_xy[code][0], "lng": airport_xy[code][1],
-                 "demandKt": float(demand[code]), "deliveredKt": round(float(delivered.get(code, 0.0)), 2)}
+                 "demandKt": float(demand[code]), "deliveredKt": round(float(delivered.get(code, 0.0)), 2),
+                 **airport_info[code]}
                 for code in airport_names]
 
     out_flows = []
@@ -72,23 +75,37 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
     names, demand, opex_rate = cfg["airports"], sol["demand_kt"], cfg["opex_rate"]
     ap = load_airports(load_config())
     xy = {r.iata: (float(r.lat), float(r.lon)) for r in ap.itertuples()}
-    farms_df = pd.read_csv(ROOT / cfg["data"]["biomass_csv"])
+    # The airports file spells Tarakan "Taraken".
+    airport_info = {r.iata: {"city": r.city.replace("Taraken", "Tarakan"), "island": bool(r.island)}
+                    for r in ap.itertuples()}
+    farms_df = load_biomass(load_config())  # adds the offshore flags from data/borneo_geo.json
     routes_path = ROOT / cfg["roads"]["routes_cache"]
     routes = json.loads(routes_path.read_text()) if routes_path.exists() else {}
     ver_path = out_dir / "verification.json"
     ver = json.loads(ver_path.read_text()) if ver_path.exists() else None
 
-    costs = pd.read_csv(out_dir / "cost_breakdown.csv").set_index("item").usd
+    cost_rows = pd.read_csv(out_dir / "cost_breakdown.csv")
+    costs = cost_rows.set_index("item").usd
+    # Shared by every plan: what the Streamlit app's Checks and Assumptions tabs show.
     common = {"demandKt": demand, "solver": cfg["solver"]["name"],
               "verified": bool(ver and ver["all_pass"]),
               "checksPassed": sum(c["pass"] for c in ver["checks"]) if ver else 0,
-              "checksTotal": len(ver["checks"]) if ver else 0}
+              "checksTotal": len(ver["checks"]) if ver else 0,
+              "checks": ver["checks"] if ver else [],
+              "baselineChecks": {n: {"passed": sum(c["pass"] for c in b["checks"]), "total": len(b["checks"])}
+                                 for n, b in (ver or {}).get("baselines", {}).items()},
+              "mixSearch": sol.get("refinery_mix_search", []),
+              "assumptions": assumptions_table(cfg).to_dict("records"),
+              "mipGapTarget": cfg["solver"]["mip_gap"],
+              "maxTotalDemandKt": cfg["refinery_yield"] * cfg["depot_yield"] * float(farms_df.kt.sum()),
+              "optimisedStatus": sol["status"], "optimisedGap": sol["gap"], "optimisedSolveTimeS": sol["solve_time_s"]}
 
     plans = [("optimised", "Optimised plan (MILP)", out_dir / "facilities.csv", out_dir / "flows.csv", {
         "totalCost": costs["Total annual cost"], "capex": costs["CapEx annualised"], "opex": costs["OpEx"],
         "logistics": sum(v for k, v in costs.items() if k.startswith("Logistics")),
         "safDelivered": sol["saf_delivered_kt"], "costPerTonne": costs["Cost per tonne SAF"],
         "capexOneTime": costs["CapEx one-time: depots"] + costs["CapEx one-time: refineries"],
+        "costItems": cost_rows.to_dict("records"),
     }, {"status": sol["status"], "gap": sol["gap"], "solveTimeS": sol["solve_time_s"]})]
 
     base_path = out_dir / "baselines.csv"
@@ -113,12 +130,13 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
         comparisons.append({"id": sid, "label": label, "totalCost": summary["totalCost"],
                             "costPerTonne": summary["costPerTonne"], "safDelivered": summary["safDelivered"],
                             "depotSites": int((fac.type == "depot").sum()),
-                            "refineries": int(ref.n_small.sum() + ref.n_large.sum())})
+                            "refineries": int(ref.n_small.sum() + ref.n_large.sum()),
+                            "refinerySizes": ", ".join(ref["size"])})
 
     docs = {}
     for sid, label, _, _, summary, extra in plans:
         meta = {"scenario": sid, "label": label, **common, **extra, "comparisons": comparisons}
-        docs[sid] = _build(*frames[sid], summary, meta, farms_df, names, xy, demand, routes)
+        docs[sid] = _build(*frames[sid], summary, meta, farms_df, names, xy, demand, routes, airport_info)
     return docs
 
 

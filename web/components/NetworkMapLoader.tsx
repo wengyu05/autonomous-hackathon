@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 const NetworkMap = dynamic(() => import("./NetworkMap"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full min-h-[420px] place-items-center border border-slate-200 bg-slate-50 text-sm text-slate-500">
+    <div className="grid h-full min-h-[420px] place-items-center rounded-lg border border-line bg-white text-sm text-ink-2">
       Loading map…
     </div>
   ),

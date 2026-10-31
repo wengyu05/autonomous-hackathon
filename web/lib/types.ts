@@ -19,6 +19,15 @@ export interface Summary {
   costPerTonne: number;
   /** Optional: one-time construction cost, USD. */
   capexOneTime?: number;
+  /** Optional: the optimised plan's full cost breakdown (outputs/cost_breakdown.csv rows). */
+  costItems?: CostItem[];
+}
+
+export interface CostItem {
+  item: string;
+  usd: number;
+  /** "one-time" | "per year" | "USD/t" */
+  basis: string;
 }
 
 export interface Farm {
@@ -27,6 +36,9 @@ export interface Farm {
   lat: number;
   lng: number;
   supplyKt: number;
+  /** In the sea in the organisers' data: supply only, no facility (assumption A13). */
+  offshore?: boolean;
+  coastKm?: number | null;
 }
 
 export interface Facility {
@@ -52,6 +64,9 @@ export interface Airport {
   lng: number;
   demandKt: number;
   deliveredKt: number;
+  city?: string;
+  /** On an island: its SAF leg uses the ferry in the road network. */
+  island?: boolean;
 }
 
 export interface Flow {
@@ -74,6 +89,29 @@ export interface PlanComparison {
   safDelivered: number;
   depotSites: number;
   refineries: number;
+  /** e.g. "1 Small, 1 Small" */
+  refinerySizes?: string;
+}
+
+export interface Check {
+  check: string;
+  pass: boolean;
+  detail: string;
+}
+
+export interface MixRun {
+  mix: string;
+  result: string;
+  objective_usd?: number | null;
+  lower_bound_usd?: number | null;
+  seconds?: number | null;
+}
+
+export interface AssumptionRow {
+  ID: string;
+  Assumption: string;
+  Value: string;
+  Note: string;
 }
 
 export interface Meta {
@@ -88,6 +126,17 @@ export interface Meta {
   checksTotal?: number;
   demandKt?: Record<string, number>;
   comparisons?: PlanComparison[];
+  // Shared by every plan, for the Checks and Assumptions tabs and the sidebar.
+  checks?: Check[];
+  baselineChecks?: Record<string, { passed: number; total: number }>;
+  mixSearch?: MixRun[];
+  assumptions?: AssumptionRow[];
+  mipGapTarget?: number;
+  maxTotalDemandKt?: number;
+  /** The optimised solve's result; the status banner shows it on every plan, as the Streamlit app does. */
+  optimisedStatus?: string;
+  optimisedGap?: number | null;
+  optimisedSolveTimeS?: number | null;
 }
 
 export interface Results {
