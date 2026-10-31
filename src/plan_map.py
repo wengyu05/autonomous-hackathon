@@ -4,6 +4,7 @@ import math
 import folium
 import pandas as pd
 
+from src.evaluate import capital_recovery_factor
 from src.roads import key
 
 # Leg colours: first three slots of the dataviz reference categorical palette, in fixed order.
@@ -34,8 +35,8 @@ def build_map(bio, ap, fac, flows, net, fit=True):
             cached = f"{key(*a)}|{key(*b)}" in net.routes
             folium.PolyLine(
                 net.route(a, b) if cached else [list(a), list(b)], color=colour, opacity=0.8,
-                weight=1.5 + 6 * math.sqrt(f.kt / max_kt), dash_array=None if cached else "6 6",
-                tooltip=f"<b>{label}</b><br>{f.from_id} → {f.to_id}<br>{f.kt:,.1f} kt/yr · {f.km:,.0f} road km<br>"
+                weight=1.5 + 6 * math.sqrt(f.kt / max_kt), dash_array=None if cached or not net.enabled else "6 6",
+                tooltip=f"<b>{label}</b><br>{f.from_id} → {f.to_id}<br>{f.kt:,.1f} kt/yr · {f.km:,.0f} km<br>"
                         f"${f.cost_usd / 1e6:,.2f}M/yr · {f.trips_large_truck:,} large-truck trips/yr",
             ).add_to(fg)
         fg.add_to(m)
@@ -108,23 +109,32 @@ def money(v):
 
 def assumptions_table(cfg):
     a = cfg["capex_annualisation"]
-    crf = a["rate"] / (1 - (1 + a["rate"]) ** -a["years"])
+    crf = capital_recovery_factor(a["rate"], a["years"])
     roads = cfg.get("roads", {}).get("source", "haversine")
     dist = (f"OpenStreetMap road km via OSRM; site-to-road stretch = straight line × {cfg['circuity']}"
-            if roads == "osrm" else f"straight line × {cfg['circuity']}")
+            if roads == "osrm" else f"great-circle km × {cfg['circuity']}")
+    annualise = (f"straight-line over {a['years']} yrs, no interest → {crf:.4f} of CapEx per yr" if a["rate"] == 0
+                 else f"{a['years']} yrs at {a['rate']:.0%} → factor {crf:.4f}")
+    fac = cfg["facilities"]
+    var = "; ".join(f"{t} " + " / ".join(f"{s} ${fac[t][s].get('variable_opex_usd_per_t', 0):g}" for s in ("Small", "Large"))
+                    for t in ("depot", "refinery")) + " per t biomass in"
+    sea = cfg["sea_leg"]
+    sea_val = (f"{sea.get('mode', 'sea')} at the truck rate" + (f" + ${sea['surcharge_usd_per_t']}/t" if sea["surcharge_usd_per_t"] else "")
+               + f" ({', '.join(sea['airports'])})")
     rows = [
         ("A1", "Mode", cfg["mode"].replace("_", " "), "Decided: produce exactly what the airports need"),
-        ("A2", "Airport SAF demand", ", ".join(f"{k} {v:g}" for k, v in cfg["demand_kt"].items()) + " kt/yr", "User input; no demand data was provided"),
-        ("A3", "Refinery yield", f"{cfg['refinery_yield']} t SAF per t biomass", "Not given in the brief"),
-        ("A4", "Depot mass yield", f"{cfg['depot_yield']}", "No mass loss at depots"),
-        ("A5", "Refinery capacity basis", cfg["refinery_capacity_basis"], "Brief's column says 'Production Capacity'"),
-        ("A6", "Depot capacity basis", cfg["depot_capacity_basis"], ""),
-        ("A7", "OpEx", f"{cfg['opex_rate']:.0%} of CapEx per year", "Brief names OpEx but gives no figures"),
-        ("A8", "CapEx annualisation", f"{a['years']} yrs at {a['rate']:.0%} → factor {crf:.4f}", "Puts one-time CapEx on the same yearly basis as logistics"),
-        ("A9", "Truck distance", dist, "Ferries count as road at the truck rate"),
+        ("A2", "Airport SAF demand", ", ".join(f"{k} {v:g}" for k, v in cfg["demand_kt"].items()) + " kt/yr", "Given: 300 kt each (challenge update); editable in the dashboard"),
+        ("A3", "Refinery yield", f"{cfg['refinery_yield']} t SAF per t biomass", "Given (challenge update)"),
+        ("A4", "Depot mass yield", f"{cfg['depot_yield']}", "Given: no mass loss at depots"),
+        ("A5", "Refinery capacity basis", "biomass intake" if cfg["refinery_capacity_basis"] == "input" else "SAF output", "Given: capacity = biomass in, kt/yr"),
+        ("A6", "Depot capacity basis", "biomass intake" if cfg["depot_capacity_basis"] == "input" else "output", "Given"),
+        ("A7", "Fixed OpEx", f"{cfg['opex_rate']:.0%} of CapEx per year", "Given"),
+        ("A7b", "Variable OpEx", var, "Given (challenge3_parameters.xlsx)"),
+        ("A8", "CapEx per year", annualise, "Given: one-year cost basis"),
+        ("A9", "Truck distance", dist, "Given: great-circle × 1.3" if roads != "osrm" else "Sensitivity: real roads; ferries count as road"),
         ("A10", "Facilities per site", f"≤ {cfg['max_per_site']['depot']} depots, ≤ {cfg['max_per_site']['refinery']} refineries", ""),
         ("A11", "Biomass → depot routes", "all kept" if not cfg["nearest_depots_per_site"] else f"{cfg['nearest_depots_per_site']} nearest", ""),
-        ("A12", "Tarakan sea leg", f"${cfg['sea_leg']['surcharge_usd_per_t']}/t surcharge", "0 = ferry priced as road"),
+        ("A12", "Tarakan last leg", sea_val, "Given: barge at $0.08/t·km, no extra fixed cost"),
         ("A13", "Offshore biomass sites", cfg["offshore_sites"].replace("_", " "), "13 sites in the sea: biomass usable, no facilities"),
     ]
     return pd.DataFrame(rows, columns=["ID", "Assumption", "Value", "Note"])
@@ -138,5 +148,5 @@ def airports_table(ap, flows, demand):
         kt = f.kt.sum()
         rows.append({"Airport": f"{a.iata} · {a.city.replace('Taraken', 'Tarakan')}", "Demand (kt)": demand[a.iata],
                      "Delivered (kt)": kt, "From refineries": ", ".join(f.from_id),
-                     "Avg road km": (f.kt * f.km).sum() / kt if kt else 0.0})
+                     "Avg km": (f.kt * f.km).sum() / kt if kt else 0.0})
     return pd.DataFrame(rows)

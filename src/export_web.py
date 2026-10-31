@@ -54,7 +54,7 @@ def _build(fac, flows, summary, meta, farms_df, airport_names, airport_xy, deman
         f = {"from": src, "to": dst, "leg": LEG[r.leg], "tonnes": round(r.kt * 1000),
              "distanceKm": round(r.km, 1), "cost": round(r.cost_usd), "trucksLarge": int(r.trips_large_truck)}
         k = f"{key(r.from_lat, r.from_lon)}|{key(r.to_lat, r.to_lon)}"
-        if k in routes:  # road shape for the map; flows without one are drawn straight
+        if k in routes:  # road shape for the map (real-road runs only); flows without one are drawn straight
             f["path"] = [[r.from_lat, r.from_lon]] + routes[k] + [[r.to_lat, r.to_lon]]
         out_flows.append(f)
 
@@ -80,7 +80,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
                     for r in ap.itertuples()}
     farms_df = load_biomass(load_config())  # adds the offshore flags from data/borneo_geo.json
     routes_path = ROOT / cfg["roads"]["routes_cache"]
-    routes = json.loads(routes_path.read_text()) if routes_path.exists() else {}
+    on_roads = cfg["roads"].get("source", "haversine") == "osrm"
+    routes = json.loads(routes_path.read_text()) if on_roads and routes_path.exists() else {}
     ver_path = out_dir / "verification.json"
     ver = json.loads(ver_path.read_text()) if ver_path.exists() else None
 
@@ -101,7 +102,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
               "optimisedStatus": sol["status"], "optimisedGap": sol["gap"], "optimisedSolveTimeS": sol["solve_time_s"]}
 
     plans = [("optimised", "Optimised plan (MILP)", out_dir / "facilities.csv", out_dir / "flows.csv", {
-        "totalCost": costs["Total annual cost"], "capex": costs["CapEx annualised"], "opex": costs["OpEx"],
+        "totalCost": costs["Total annual cost"], "capex": costs["CapEx annualised"], "opex": costs["Fixed OpEx"],
+        "variableOpex": costs["Variable OpEx: depots"] + costs["Variable OpEx: refineries"],
         "logistics": sum(v for k, v in costs.items() if k.startswith("Logistics")),
         "safDelivered": sol["saf_delivered_kt"], "costPerTonne": costs["Cost per tonne SAF"],
         "capexOneTime": costs["CapEx one-time: depots"] + costs["CapEx one-time: refineries"],
@@ -116,7 +118,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
                       out_dir / f"baseline_{b.lower()}_flows.csv", {
                           "totalCost": r.total_annual_usd,
                           "capex": r.capex_plus_opex_annual_usd - opex_rate * r.capex_onetime_usd,
-                          "opex": opex_rate * r.capex_onetime_usd, "logistics": r.logistics_usd,
+                          "opex": opex_rate * r.capex_onetime_usd, "variableOpex": r.variable_opex_usd,
+                          "logistics": r.logistics_usd,
                           "safDelivered": round(fl[fl.leg == "refinery_to_airport"].kt.sum(), 3),
                           "costPerTonne": r.cost_per_t_saf_usd, "capexOneTime": r.capex_onetime_usd,
                       }, {"status": "Baseline (rule-based)", "gap": None, "solveTimeS": None}))

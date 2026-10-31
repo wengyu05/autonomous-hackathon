@@ -10,11 +10,12 @@ interface CostChartProps {
   flows: Flow[];
 }
 
-/** Donut of annual cost (CapEx, OpEx, logistics) plus logistics split by leg. */
+/** Donut of annual cost (CapEx, fixed OpEx, variable OpEx, logistics) plus logistics split by leg. */
 export default function CostChart({ summary, flows }: CostChartProps) {
   const slices = [
     { name: "CapEx (annualised)", value: summary.capex, color: "#14532d" },
-    { name: "OpEx", value: summary.opex, color: "#86b08f" },
+    { name: "Fixed OpEx", value: summary.opex, color: "#86b08f" },
+    { name: "Variable OpEx", value: summary.variableOpex ?? 0, color: "#c9a227" },
     { name: "Logistics", value: summary.logistics, color: "#94a3b8" },
   ];
   const byLeg = (Object.keys(LEG_STYLE) as Leg[]).map((leg) => ({
@@ -79,7 +80,7 @@ export default function CostChart({ summary, flows }: CostChartProps) {
         {summary.capexOneTime != null && (
           <p className="text-xs text-slate-500">
             One-time construction: <b className="text-slate-700">{usdM(summary.capexOneTime, 0)}</b>, spread over the
-            plant life as annualised CapEx.
+            20-year plant life (straight-line) as annualised CapEx.
           </p>
         )}
       </div>

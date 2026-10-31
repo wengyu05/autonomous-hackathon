@@ -19,7 +19,7 @@ import pandas as pd
 
 from src.candidates import point_in_land
 from src.distances import road_km_matrix
-from src.evaluate import KT_TO_T, evaluate, truck_trips
+from src.evaluate import KT_TO_T, evaluate, size_split, truck_trips
 from src.load_data import ROOT, load_airports, load_biomass, load_config, load_geo
 
 OUT = ROOT / "outputs"
@@ -62,10 +62,12 @@ class Plan:
         if ns is None:
             ns, nl = cheapest_mix(load, units)
         cap = ns * units["Small"]["capacity_kt"] + nl * units["Large"]["capacity_kt"]
+        in_small, in_large = size_split(self.cfg, kind, ns, nl, input_kt)
         self.fac_rows.append({"type": kind, "site_id": site[0], "site_kind": "baseline", "lat": site[1], "lon": site[2],
                               "n_small": ns, "n_large": nl,
                               "size": " + ".join(p for p in (f"{nl} Large" if nl else "", f"{ns} Small" if ns else "") if p),
-                              "capacity_kt": cap, "input_kt": input_kt, "output_kt": out,
+                              "capacity_kt": cap, "input_kt": input_kt, "input_small_kt": in_small,
+                              "input_large_kt": in_large, "output_kt": out,
                               "utilisation_pct": 100 * load / cap})
 
     def frames(self):
@@ -207,6 +209,7 @@ def run(cfg, milp_total=None, out_dir=OUT, write=True):
         rows.append({"baseline": key, "name": name, "total_annual_usd": c["total_annual_usd"],
                      "capex_onetime_usd": c["capex_onetime_total_usd"],
                      "capex_plus_opex_annual_usd": c["capex_annualised_usd"] + c["opex_usd"],
+                     "variable_opex_usd": c["variable_opex_usd"],
                      "logistics_usd": c["logistics_total_usd"], "cost_per_t_saf_usd": c["cost_per_t_saf_usd"],
                      "refinery_sites": len(refs), "refineries": f"{int(refs.n_large.sum())} Large + {int(refs.n_small.sum())} Small",
                      "depot_sites": int((fac.type == "depot").sum()),
@@ -231,7 +234,7 @@ def main():
     for r in table.itertuples():
         print(f"{r.baseline} {r.name:26s} ${r.total_annual_usd:,.0f}/yr  ${r.cost_per_t_saf_usd:,.0f}/t  "
               f"refineries {r.refineries} at {r.refinery_sites} site(s), {r.depot_sites} depot sites  "
-              f"capex+opex ${r.capex_plus_opex_annual_usd:,.0f}  logistics ${r.logistics_usd:,.0f}  "
+              f"capex+opex ${r.capex_plus_opex_annual_usd:,.0f}  variable ${r.variable_opex_usd:,.0f}  logistics ${r.logistics_usd:,.0f}  "
               f"-> MILP saves {r.milp_saving_pct:.1f}%")
 
 

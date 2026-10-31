@@ -64,8 +64,9 @@ def run_solve(cfg, time_limit, status):
         status.update(label="Scoring the baselines and running the independent checks…")
         baselines.run(cfg, res.costs["total_annual_usd"])
         verify.run()
-        status.update(label="Fetching road shapes for new routes (about 1 per second)…")
-        fetch_plan_routes(cfg, log=lambda *_: None)
+        if cfg["roads"]["source"] == "osrm":
+            status.update(label="Fetching road shapes for new routes (about 1 per second)…")
+            fetch_plan_routes(cfg, log=lambda *_: None)
     return res
 
 
@@ -73,7 +74,8 @@ def run_solve(cfg, time_limit, status):
 
 
 def cost_chart(costs: pd.DataFrame):
-    keep = ["CapEx annualised", "OpEx", "Logistics: biomass to depot", "Logistics: depot to refinery",
+    keep = ["CapEx annualised", "Fixed OpEx", "Variable OpEx: depots", "Variable OpEx: refineries",
+            "Logistics: biomass to depot", "Logistics: depot to refinery",
             "Logistics: refinery to airport", "Sea surcharge (Tarakan)"]
     d = costs[costs["item"].isin(keep)].copy()
     d["USD M/yr"] = d.usd / 1e6
@@ -96,7 +98,7 @@ max_saf = cfg_default["refinery_yield"] * cfg_default["depot_yield"] * bio.kt.su
 
 with st.sidebar:
     st.header("Airport SAF demand")
-    st.caption("kt of SAF per year. The brief gives no demand figures, so these are inputs.")
+    st.caption("kt of SAF per year. The organisers set 300 kt per airport; change it to test other demand.")
     start = res["sol"]["demand_kt"] if res else cfg_default["demand_kt"]
     with st.form("demand"):
         demand = {code: st.number_input(f"{code} · {name}", min_value=0.0, max_value=float(max_saf), step=10.0,
@@ -179,10 +181,12 @@ with col_map:
     st_folium(build_map(bio, ap, fac, flows, net), height=660, use_container_width=True, returned_objects=[],
               center=[-0.5, 113.4], zoom=6,
               key=f"map_{plan_key}_{sol['solve_time_s']:.3f}")
-    st.caption("Truck routes follow OpenStreetMap roads (routing by OSRM). Hover lines and markers for details; "
-               "the layers button (top right) turns groups on and off. © OpenStreetMap contributors.")
-    st.warning("**Known limit: Tarakan (TRK) is on an island.** Its SAF reaches it by the ferry in the road network, "
-               "priced at the truck rate. A real plan needs a barge or ferry tariff (assumption A12).", icon="⚠️")
+    st.caption(("Truck routes follow OpenStreetMap roads (routing by OSRM). " if net.enabled else
+                "Lines are straight: distances are great-circle km × 1.3, as the organisers specify. ")
+               + "Hover lines and markers for details; the layers button (top right) turns groups on and off. "
+               "© OpenStreetMap contributors.")
+    st.info("**Tarakan (TRK) is on an island.** Its last leg is a barge at the same $0.08 per t·km as the truck leg, "
+            "with no extra fixed cost, as the organisers specify (assumption A12).", icon="🚢")
 
 with col_data:
     t_air, t_fac, t_cost, t_flow, t_base, t_check, t_assume = st.tabs(
@@ -192,7 +196,7 @@ with col_data:
         st.dataframe(airports_table(ap, flows, sol["demand_kt"]), hide_index=True, use_container_width=True,
                      column_config={"Demand (kt)": st.column_config.NumberColumn(format="%.0f"),
                                     "Delivered (kt)": st.column_config.NumberColumn(format="%.1f"),
-                                    "Avg road km": st.column_config.NumberColumn(format="%.0f")})
+                                    "Avg km": st.column_config.NumberColumn(format="%.0f")})
         used = flows[flows.leg == "biomass_to_depot"].groupby("from_id").kt.sum()
         st.caption(f"Biomass used: **{used.sum():,.0f} kt** from **{len(used)} of 80 sites**, "
                    f"making {flows[flows.leg == 'refinery_to_airport'].kt.sum():,.0f} kt SAF.")
@@ -210,8 +214,8 @@ with col_data:
                 "output_kt": st.column_config.NumberColumn("Out (kt/yr)", format="%.1f"),
                 "utilisation_pct": st.column_config.ProgressColumn("Used", format="%.0f%%", min_value=0, max_value=100),
             })
-        st.caption("Small and Large depots cost the same per kt, so the depot Small/Large split is a cost tie; "
-                   "total capacity per site is the real decision.")
+        st.caption("Capacity is biomass intake. Large units cost less to run per tonne ($4 vs $5 at depots, "
+                   "$55 vs $60 at refineries), so the size split is a real decision, not a tie.")
 
     with t_cost:
         if plan_key == "MILP":
@@ -230,11 +234,12 @@ with col_data:
                      hide_index=True, use_container_width=True, height=440,
                      column_config={"leg": "Leg", "from_id": "From", "to_id": "To",
                                     "kt": st.column_config.NumberColumn("kt/yr", format="%.1f"),
-                                    "km": st.column_config.NumberColumn("Road km", format="%.0f"),
+                                    "km": st.column_config.NumberColumn("km", format="%.0f"),
                                     "cost_usd": st.column_config.NumberColumn("USD/yr", format="$%,.0f"),
                                     "trips_large_truck": st.column_config.NumberColumn("Large-truck trips/yr", format="%,d")})
-        st.caption("Road km = OpenStreetMap route between the nearest road points + the straight stretch from each site "
-                   "to its road × 1.3. A depot at the same site as its refinery has a 0 km leg.")
+        st.caption(("km = OpenStreetMap route between the nearest road points + the straight stretch from each site "
+                    "to its road × 1.3." if net.enabled else "km = great-circle distance × 1.3.")
+                   + " A depot at the same site as its refinery has a 0 km leg.")
 
     with t_base:
         b = res["baselines"]
@@ -249,7 +254,7 @@ with col_data:
                      column_config={"Cost per year": st.column_config.NumberColumn(format="$%,.0f"),
                                     "$/t SAF": st.column_config.NumberColumn(format="$%,.0f"),
                                     "MILP saves": st.column_config.NumberColumn(format="%.1f%%")})
-        st.caption("All three plans use the same road distances and cost function and pass the same independent "
+        st.caption("All three plans use the same distances and cost function and pass the same independent "
                    "checks. Savings are modelled, not measured, and depend on the demand entered.")
 
     with t_check:

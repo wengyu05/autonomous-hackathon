@@ -132,12 +132,12 @@ export default function Dashboard() {
                       </button>
                     </>
                   ) : (
-                    "Truck routes follow OpenStreetMap roads (routing by OSRM); arrows show which way the trucks drive. Hover a marker or line for details; click a site to show only its routes."
+                    `${data.flows.some((f) => f.path) ? "Truck routes follow OpenStreetMap roads (routing by OSRM)" : "Lines are straight: distances are great-circle km × 1.3, as the organisers specify"}; arrows show which way the trucks drive. Hover a marker or line for details; click a site to show only its routes.`
                   )}
                 </p>
-                <p className="border-l-2 border-amber-500 bg-amber-50 p-3 text-xs text-amber-900">
-                  <b>Known limit: Tarakan (TRK) is on an island.</b> Its SAF reaches it by the ferry in the road network,
-                  priced at the truck rate. A real plan needs a barge or ferry tariff (assumption A12).
+                <p className="border-l-2 border-sky-600 bg-sky-50 p-3 text-xs text-sky-900">
+                  <b>Tarakan (TRK) is on an island.</b> Its last leg is a barge at the same $0.08 per t·km as the truck leg,
+                  with no extra fixed cost, as the organisers specify (assumption A12).
                 </p>
               </div>
               <DataTabs data={data} query={query} selectedId={selectedId} onSelect={setSelectedId} />

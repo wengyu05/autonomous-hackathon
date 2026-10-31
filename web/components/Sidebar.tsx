@@ -62,7 +62,7 @@ export default function Sidebar(p: SidebarProps) {
           <h2 id="demand-title" className={label}>
             Airport SAF demand
           </h2>
-          <p className="mt-1 text-xs text-slate-500">kt SAF per year. The brief gives no demand figures, so these are inputs.</p>
+          <p className="mt-1 text-xs text-slate-500">kt SAF per year. The organisers set 300 kt per airport; change it to test other demand.</p>
         </div>
 
         {p.airports.map((a) => (

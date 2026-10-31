@@ -174,7 +174,7 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
       <MapContainer center={KALIMANTAN_CENTER} zoom={6} minZoom={4} className="h-full w-full" aria-label="Map of the SAF supply network in Kalimantan">
         <TileLayer
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · routes: OSRM'
+          attribution={`&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors${data.flows.some((f) => f.path) ? " · routes: OSRM" : ""}`}
           maxZoom={19}
         />
         <ClearOnMapClick onClear={() => onSelect(null)} />
@@ -193,7 +193,7 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
                   <br />
                   {siteOf(f.from)} → {siteOf(f.to)}
                   <br />
-                  {num(f.tonnes / 1000, 1)} kt/yr · {num(f.distanceKm)} road km
+                  {num(f.tonnes / 1000, 1)} kt/yr · {num(f.distanceKm)} km
                   <br />${num(f.cost / 1e6, 2)}M/yr · {num(f.trucksLarge ?? 0)} large-truck trips/yr
                 </Tooltip>
               </Polyline>
@@ -302,9 +302,9 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
                   <>
                     <br />
                     <b style={{ color: CRITICAL }}>
-                      On an island: routes use the ferry,
+                      On an island: SAF arrives by barge,
                       <br />
-                      priced at the truck rate.
+                      at the truck rate per t·km.
                     </b>
                   </>
                 )}
@@ -349,7 +349,7 @@ export default function NetworkMap({ data, selectedId, onSelect }: NetworkMapPro
             {s.label}
           </p>
         ))}
-        <p className="text-slate-500">Road routes · width ∝ kt/yr · arrows show truck direction</p>
+        <p className="text-slate-500">{data.flows.some((f) => f.path) ? "Road routes" : "Straight lines (great-circle × 1.3)"} · width ∝ kt/yr · arrows show truck direction</p>
         <p>
           <i className="fa fa-industry" aria-hidden /> Refinery&nbsp;&nbsp;
           <span className="mx-1 inline-block h-2 w-2 rotate-45 border-2" style={{ borderColor: INK }} aria-hidden /> Depot&nbsp;&nbsp;

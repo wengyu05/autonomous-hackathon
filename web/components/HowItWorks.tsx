@@ -12,7 +12,7 @@ const BRIEF_RATES: Record<Leg, string> = {
 const h = "text-xs font-medium uppercase tracking-wide text-slate-500";
 const p = "text-sm leading-relaxed text-slate-700";
 
-/** Tonne-weighted average road km and total cost of one leg. */
+/** Tonne-weighted average km and total cost of one leg. */
 function legStats(flows: Flow[], leg: Leg) {
   const f = flows.filter((x) => x.leg === leg);
   const t = f.reduce((s, x) => s + x.tonnes, 0);
@@ -65,18 +65,21 @@ export default function HowItWorks({ data }: { data: Results }) {
       <section className="space-y-2">
         <h3 className={h}>2 · What it is trying to make as small as possible</h3>
         <p className={p}>
-          <b>Total cost per year</b> = building cost spread over the plant life + running cost + trucking cost.
+          <b>Total cost per year</b> = building cost spread over the plant life + fixed running cost + running cost per tonne + transport cost.
         </p>
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
           <li>
             <b>Building cost</b> (refineries $480M–$765M each, depots $2.25M–$4.5M) is spread over the years:{" "}
-            {assume("A8") ?? "20 years at 8%"}.
+            {assume("A8") ?? "straight-line over 20 years, no interest"}.
           </li>
           <li>
-            <b>Running cost (OpEx):</b> {assume("A7") ?? "5% of CapEx per year"}.
+            <b>Fixed running cost:</b> {assume("A7") ?? "5% of CapEx per year"}.
           </li>
           <li>
-            <b>Trucking:</b> tonnes × road km × the brief&apos;s rate for that leg (
+            <b>Running cost per tonne:</b> {assume("A7b") ?? "depots $5 Small / $4 Large, refineries $60 Small / $55 Large"}.
+          </li>
+          <li>
+            <b>Transport:</b> tonnes × km × the brief&apos;s rate for that leg (barge to Tarakan at the truck rate) (
             {legs.map((l, i) => (
               <span key={l.leg}>
                 {i > 0 && ", "}
@@ -93,7 +96,7 @@ export default function HowItWorks({ data }: { data: Results }) {
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
           <li>Each airport receives at least its SAF demand.</li>
           <li>No biomass site sends more than it produces.</li>
-          <li>No depot or refinery handles more than its capacity (Small or Large, as given in the brief).</li>
+          <li>No depot or refinery takes in more biomass than its capacity (Small or Large, as given in the brief).</li>
           <li>
             Mass is conserved: depots pass biomass through; refineries turn biomass into SAF at{" "}
             {assume("A3") ?? "0.2 t SAF per t biomass"}.
@@ -123,11 +126,11 @@ export default function HowItWorks({ data }: { data: Results }) {
           <li>
             <b>Depots sit next to refineries.</b> Depots don&apos;t reduce weight, and depot → refinery trucking ($0.12) costs
             more than biomass → depot ($0.10), so the cheapest place to pre-process is at the refinery.
-            {!isBaseline && <> Here, biomass travels on average <b>{num(legs[1].km)} road km</b> from depot to refinery.</>}
+            {!isBaseline && <> Here, biomass travels on average <b>{num(legs[1].km)} km</b> from depot to refinery.</>}
           </li>
           <li>
-            <b>Large refineries are cheaper per tonne</b> ($704k vs $960k per kt of capacity), but one big site means longer
-            trucking. The solver weighs both.
+            <b>Large refineries are cheaper per tonne</b> to build ($704k vs $960k per kt of capacity) and to run ($55 vs $60
+            per tonne of biomass), but one big site means longer trucking. The solver weighs both.
           </li>
         </ul>
       </section>
@@ -135,8 +138,7 @@ export default function HowItWorks({ data }: { data: Results }) {
       <section className="space-y-2">
         <h3 className={h}>5 · How it picks the routes</h3>
         <p className={p}>
-          Every possible route uses the real road distance from OpenStreetMap (routed by OSRM), plus the short stretch from a
-          site to its nearest road. The solver chooses how many tonnes go on each route, so biomass flows to whichever depot
+          Every possible route uses the organisers&apos; distance rule: great-circle distance × 1.3. The solver chooses how many tonnes go on each route, so biomass flows to whichever depot
           and refinery give the lowest total cost without breaking a capacity limit. The arrows on the map show the direction
           the trucks drive.
         </p>
@@ -147,7 +149,7 @@ export default function HowItWorks({ data }: { data: Results }) {
               <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                 <th scope="col" className="px-3 py-2 font-medium">Leg</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">kt/yr</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Avg road km</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Avg km</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">Share of trucking</th>
               </tr>
             </thead>

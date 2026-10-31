@@ -10,8 +10,6 @@ import pandas as pd
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-AIRPORT_COLS = ["id", "name", "city", "country", "iata", "icao", "lat", "lon",
-                "alt", "tz_offset", "dst", "tz", "type", "source"]
 
 
 def load_config(path=None, overrides=None) -> dict:
@@ -64,19 +62,47 @@ def load_biomass(cfg, geo=None) -> pd.DataFrame:
 
 
 def load_airports(cfg) -> pd.DataFrame:
-    paths = sorted(ROOT.glob(cfg["data"]["airports_glob"]))
-    if not paths:
-        raise FileNotFoundError(f"Airport file missing: put airports.dat in {ROOT / 'data'}")
-    df = pd.read_csv(paths[0], header=None, names=AIRPORT_COLS)
+    """The 4 airports from the organisers' challenge3_airports_4.csv, with their SAF demand."""
+    path = ROOT / cfg["data"]["airports_csv"]
+    if not path.exists():
+        raise FileNotFoundError(f"Airport file missing: put challenge3_airports_4.csv at {path}")
+    raw = pd.read_csv(path)
     wanted = cfg["airports"]
-    df = df[df.iata.isin(wanted)].copy()
-    missing = set(wanted) - set(df.iata)
+    missing = set(wanted) - set(raw.iata)
     if missing:
-        raise ValueError(f"IATA codes not found in {paths[0].name}: {sorted(missing)}")
+        raise ValueError(f"IATA codes not found in {path.name}: {sorted(missing)}")
+    df = raw[raw.iata.isin(wanted)].set_index("iata").loc[list(wanted)].reset_index()  # config order
+    df = df.rename(columns={"latitude": "lat", "longitude": "lon", "saf_demand_kt_per_year": "demand_kt"})
     df["brief_name"] = df.iata.map(wanted)
     df["island"] = df.iata.isin(cfg["sea_leg"]["airports"])
-    df = df.set_index("iata").loc[list(wanted)].reset_index()  # config order
-    return df[["iata", "brief_name", "name", "city", "lat", "lon", "island"]]
+    return df[["iata", "brief_name", "name", "city", "lat", "lon", "island", "demand_kt"]]
+
+
+def check_parameters(cfg) -> list[str]:
+    """Differences between config.yaml and the organisers' challenge3_parameters.xlsx / airports CSV.
+    Empty list = config matches the given numbers."""
+    issues = []
+    xlsx = ROOT / cfg["data"]["parameters_xlsx"]
+    if xlsx.exists():
+        fac = pd.read_excel(xlsx, "facilities", header=2)
+        for r in fac.itertuples():
+            mine = cfg["facilities"][r.facility.lower()][r.size]
+            for key, given in (("capex_usd", r.capex_usd), ("capacity_kt", r.capacity_kt_biomass_in_per_year),
+                               ("variable_opex_usd_per_t", r.variable_opex_usd_per_tonne_in)):
+                if abs(mine[key] - given) > 1e-9:
+                    issues.append(f"{r.facility} {r.size} {key}: config {mine[key]} vs given {given}")
+            if abs(cfg["opex_rate"] * r.capex_usd - r.fixed_opex_usd_per_year) > 1e-6:
+                issues.append(f"{r.facility} {r.size} fixed OpEx: config {cfg['opex_rate']} x CapEx vs given {r.fixed_opex_usd_per_year}")
+        legs = dict(zip(("biomass_to_depot", "depot_to_refinery", "refinery_to_airport"),
+                        pd.read_excel(xlsx, "transport", header=2).cost_usd_per_tonne_km))
+        for leg, given in legs.items():
+            if abs(cfg["transport"][leg]["usd_per_tkm"] - given) > 1e-9:
+                issues.append(f"{leg} rate: config {cfg['transport'][leg]['usd_per_tkm']} vs given {given}")
+    ap = load_airports(cfg)
+    for r in ap.itertuples():
+        if abs(cfg["demand_kt"][r.iata] - r.demand_kt) > 1e-9:
+            issues.append(f"{r.iata} demand: config {cfg['demand_kt'][r.iata]} vs given {r.demand_kt}")
+    return issues
 
 
 def main():
@@ -85,8 +111,10 @@ def main():
     print(f"Biomass: {len(bio)} sites, {bio.kt.sum():,.1f} kt, min {bio.kt.min()} max {bio.kt.max()}")
     off = bio[bio.offshore]
     print(f"Offshore (supply only, A13): {len(off)} sites, {off.kt.sum():,.1f} kt: {off.id.tolist()}")
-    print("Airports matched on IATA:")
+    print("Airports (challenge3_airports_4.csv):")
     print(ap.to_string(index=False))
+    issues = check_parameters(cfg)
+    print("config.yaml matches the organisers' parameters" if not issues else "MISMATCH:\n  " + "\n  ".join(issues))
 
 
 if __name__ == "__main__":

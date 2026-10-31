@@ -5,12 +5,14 @@ export type Size = "Small" | "Large";
 export type Leg = "farm_depot" | "depot_refinery" | "refinery_airport";
 
 export interface Summary {
-  /** Total annual cost in USD: annualised CapEx + OpEx + logistics. */
+  /** Total annual cost in USD: annualised CapEx + fixed OpEx + variable OpEx + logistics. */
   totalCost: number;
   /** Annualised CapEx, USD per year. */
   capex: number;
-  /** OpEx, USD per year. */
+  /** Fixed OpEx (a share of CapEx), USD per year. */
   opex: number;
+  /** Variable OpEx (per tonne of biomass into depots and refineries), USD per year. Optional for older files. */
+  variableOpex?: number;
   /** Trucking cost across all three legs, USD per year. */
   logistics: number;
   /** SAF delivered to airports, kt per year. */
@@ -65,7 +67,7 @@ export interface Airport {
   demandKt: number;
   deliveredKt: number;
   city?: string;
-  /** On an island: its SAF leg uses the ferry in the road network. */
+  /** On an island: its SAF arrives by barge, priced per t·km like the truck leg. */
   island?: boolean;
 }
 
@@ -77,7 +79,7 @@ export interface Flow {
   distanceKm: number;
   cost: number;
   trucksLarge?: number;
-  /** Optional road geometry as [lat, lng] pairs; drawn straight when absent. */
+  /** Optional road geometry as [lat, lng] pairs (real-road runs only); drawn straight when absent. */
   path?: [number, number][];
 }
 

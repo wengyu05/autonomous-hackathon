@@ -4,9 +4,16 @@ Read this whole file before writing code. It is the source of truth for the prob
 
 ---
 
-## Spec revisions (31 Oct 2026, rev 3)
+## Spec revisions (31 Oct 2026, rev 4)
 
-### Rev 3: team decisions
+### Rev 4: organisers' challenge update
+
+| # | Change | Sections |
+|---|---|---|
+| R17 | **Official rules replace the open assumptions.** New files `data/challenge3_parameters.xlsx` and `data/challenge3_airports_4.csv` (airports + demand; replaces `airports.dat`). Capacity = biomass intake for depots and refineries (A5 = A6 = `input`). Yield 0.20, depot yield 1.0. Demand 300 kt per airport. CapEx straight-line over 20 years, no interest (`capex_annualisation.rate: 0` → factor 0.05). Fixed OpEx 5% of CapEx. **New variable OpEx** per tonne of biomass in (`variable_opex_usd_per_t`: depot $5 Small / $4 Large, refinery $60 Small / $55 Large), modelled with per-size intake variables. Distance = great-circle × 1.3 (`roads.source: haversine`; OSRM kept as a sensitivity run). Tarakan's last leg is a barge at the same $0.08/t·km, no extra fixed cost. Depot sizes are no longer a tie (Large runs cheaper), so depot modules are off. `load_data.check_parameters` checks config.yaml against the organisers' files | 1, 2, 3, 4, 7.3 |
+
+### Rev 3
+
 
 | # | Change | Sections |
 |---|---|---|
