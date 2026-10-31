@@ -4,9 +4,10 @@ import { useState } from "react";
 import type { Results } from "@/lib/types";
 import AirportList from "./AirportList";
 import CostChart from "./CostChart";
+import HowItWorks from "./HowItWorks";
 import { AssumptionsTable, BaselineTable, ChecksTab, CostItemsTable, FacilityTable, FlowTable } from "./Tables";
 
-const TABS = ["Airports", "Facilities", "Costs", "Routes", "Baselines", "Checks", "Assumptions"] as const;
+const TABS = ["Airports", "Facilities", "Costs", "Routes", "Baselines", "Checks", "Assumptions", "How it works"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The seven data tabs beside the map, in the Streamlit app's order. */
@@ -66,6 +67,7 @@ export default function DataTabs({ data, query, selectedId, onSelect }: {
         {tab === "Baselines" && <BaselineTable data={data} />}
         {tab === "Checks" && <ChecksTab data={data} />}
         {tab === "Assumptions" && <AssumptionsTable data={data} />}
+        {tab === "How it works" && <HowItWorks data={data} />}
       </div>
     </div>
   );
