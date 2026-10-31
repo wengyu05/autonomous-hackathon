@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.load_data import ROOT, load_airports, load_biomass, load_config
+from src.load_data import DISTANCE_MODES, ROOT, load_airports, load_biomass, load_config, outputs_dir
 from src.plan_map import assumptions_table
 from src.roads import key
 
@@ -54,7 +54,7 @@ def _build(fac, flows, summary, meta, farms_df, airport_names, airport_xy, deman
         f = {"from": src, "to": dst, "leg": LEG[r.leg], "tonnes": round(r.kt * 1000),
              "distanceKm": round(r.km, 1), "cost": round(r.cost_usd), "trucksLarge": int(r.trips_large_truck)}
         k = f"{key(r.from_lat, r.from_lon)}|{key(r.to_lat, r.to_lon)}"
-        if k in routes:  # road shape for the map; flows without one are drawn straight
+        if k in routes:  # road shape for the map (real-road runs only); flows without one are drawn straight
             f["path"] = [[r.from_lat, r.from_lon]] + routes[k] + [[r.to_lat, r.to_lon]]
         out_flows.append(f)
 
@@ -80,7 +80,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
                     for r in ap.itertuples()}
     farms_df = load_biomass(load_config())  # adds the offshore flags from data/borneo_geo.json
     routes_path = ROOT / cfg["roads"]["routes_cache"]
-    routes = json.loads(routes_path.read_text()) if routes_path.exists() else {}
+    on_roads = cfg["roads"].get("source", "haversine") == "osrm"
+    routes = json.loads(routes_path.read_text()) if on_roads and routes_path.exists() else {}
     ver_path = out_dir / "verification.json"
     ver = json.loads(ver_path.read_text()) if ver_path.exists() else None
 
@@ -101,7 +102,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
               "optimisedStatus": sol["status"], "optimisedGap": sol["gap"], "optimisedSolveTimeS": sol["solve_time_s"]}
 
     plans = [("optimised", "Optimised plan (MILP)", out_dir / "facilities.csv", out_dir / "flows.csv", {
-        "totalCost": costs["Total annual cost"], "capex": costs["CapEx annualised"], "opex": costs["OpEx"],
+        "totalCost": costs["Total annual cost"], "capex": costs["CapEx annualised"], "opex": costs["Fixed OpEx"],
+        "variableOpex": costs["Variable OpEx: depots"] + costs["Variable OpEx: refineries"],
         "logistics": sum(v for k, v in costs.items() if k.startswith("Logistics")),
         "safDelivered": sol["saf_delivered_kt"], "costPerTonne": costs["Cost per tonne SAF"],
         "capexOneTime": costs["CapEx one-time: depots"] + costs["CapEx one-time: refineries"],
@@ -116,7 +118,8 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
                       out_dir / f"baseline_{b.lower()}_flows.csv", {
                           "totalCost": r.total_annual_usd,
                           "capex": r.capex_plus_opex_annual_usd - opex_rate * r.capex_onetime_usd,
-                          "opex": opex_rate * r.capex_onetime_usd, "logistics": r.logistics_usd,
+                          "opex": opex_rate * r.capex_onetime_usd, "variableOpex": r.variable_opex_usd,
+                          "logistics": r.logistics_usd,
                           "safDelivered": round(fl[fl.leg == "refinery_to_airport"].kt.sum(), 3),
                           "costPerTonne": r.cost_per_t_saf_usd, "capexOneTime": r.capex_onetime_usd,
                       }, {"status": "Baseline (rule-based)", "gap": None, "solveTimeS": None}))
@@ -141,6 +144,15 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
     return docs
 
 
+def web_dir(mode: str) -> Path:
+    """Where the Next.js app serves a distance mode's JSON (mirrors load_data.outputs_dir)."""
+    return WEB_DATA if mode == "official" else WEB_DATA / mode
+
+
+def web_prefix(mode: str) -> str:
+    return "/data/" if mode == "official" else f"/data/{mode}/"
+
+
 def scenario_index(docs: dict[str, dict], prefix: str = "/data/") -> list[dict]:
     """Dropdown entries; `prefix` is "/data/" for static files or an API path."""
     return [{"id": sid, "label": d["meta"]["label"],
@@ -148,7 +160,7 @@ def scenario_index(docs: dict[str, dict], prefix: str = "/data/") -> list[dict]:
             for sid, d in docs.items()]
 
 
-def write_static(docs: dict[str, dict], dest: Path = WEB_DATA) -> list[Path]:
+def write_static(docs: dict[str, dict], dest: Path = WEB_DATA, prefix: str = "/data/") -> list[Path]:
     """Write the documents and scenarios.json where the Next.js app serves them."""
     dest.mkdir(parents=True, exist_ok=True)
     written = []
@@ -156,13 +168,17 @@ def write_static(docs: dict[str, dict], dest: Path = WEB_DATA) -> list[Path]:
         p = dest / FILES[sid]
         p.write_text(json.dumps(doc, separators=(",", ":"), default=float))
         written.append(p)
-    (dest / "scenarios.json").write_text(json.dumps(scenario_index(docs), indent=2))
+    (dest / "scenarios.json").write_text(json.dumps(scenario_index(docs, prefix), indent=2))
     return written
 
 
 def main():
-    docs = build_all()
-    for p in write_static(docs):
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--distances", choices=list(DISTANCE_MODES), default="official")
+    mode = p.parse_args().distances
+    docs = build_all(outputs_dir(mode))
+    for p in write_static(docs, web_dir(mode), web_prefix(mode)):
         print(f"wrote {p.relative_to(ROOT)}")
     for sid, d in docs.items():
         print(f"  {sid}: {len(d['depots'])} depots, {len(d['refineries'])} refineries, "

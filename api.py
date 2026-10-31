@@ -5,27 +5,29 @@ Run:  uvicorn api:app --reload --port 8000        (docs at http://localhost:8000
 Endpoints
   GET  /api/health                 solver, data and plan status
   GET  /api/config                 airports, default demand, feasibility limit, assumptions
-  GET  /api/scenarios              dropdown entries for the plans in outputs/
+  GET  /api/scenarios              dropdown entries for the plans in outputs/ (?distances=official|roads)
   GET  /api/results/{scenario}     one plan (optimised | b1 | b2) in the dashboard JSON contract
   POST /api/solve                  re-plan for new airport demand; returns the optimised plan
 
-A solve runs the same pipeline as the Streamlit app: feasibility gate -> MILP (solve_by_mix) ->
-outputs/ -> baselines -> independent verifier. Results are converted by src/export_web.py, the
+A solve runs src/pipeline.py for one distance mode: feasibility gate -> MILP (solve_by_mix) ->
+outputs/ (outputs/roads/ for real roads) -> baselines -> independent verifier. Results are converted by src/export_web.py, the
 same converter that writes the dashboard's static JSON. All numbers come from config.yaml and
 the data files; nothing here changes an assumption except the demand sent by the client.
 """
 import threading
 import time
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from src import baselines, verify
-from src.export_web import WEB_DATA, NoPlan, build_all, scenario_index, write_static
-from src.load_data import ROOT, load_airports, load_biomass, load_config, load_geo
-from src.model import check_inputs, solve_by_mix, write_outputs
-from src.roads import fetch_plan_routes
+from src import pipeline
+from src.export_web import WEB_DATA, NoPlan, build_all, scenario_index
+from src.load_data import ROOT, load_airports, load_biomass, load_config, load_geo, outputs_dir
+from src.model import check_inputs
+
+Distances = Literal["official", "roads"]
 
 app = FastAPI(title="Kalimantan SAF Planner API", version="1.0")
 
@@ -54,8 +56,10 @@ class SolveRequest(BaseModel):
                          "Missing airports keep their config.yaml default.",
         examples=[{"PNK": 200, "PKN": 800, "BPN": 170, "TRK": 170}])
     timeLimitS: int = Field(60, ge=10, le=600, description="Solver time limit in seconds (CLAUDE.md 4.7).")
-    fetchRoutes: bool = Field(False, description="Fetch road shapes for new routes from the public OSRM server "
-                                                 "(about 1 request per second). Off: new routes draw straight.")
+    distances: Distances = Field("official", description="official = great-circle x 1.3 (the organisers' rule); "
+                                                           "roads = cached OpenStreetMap road km.")
+    fetchRoutes: bool = Field(False, description="Roads mode: fetch road shapes for new routes from the public OSRM "
+                                                 "server (about 1 request per second). Off: new routes draw straight.")
     writeStatic: bool = Field(True, description="Also refresh web/public/data/*.json so the static dashboard "
                                                 "shows the new plan.")
 
@@ -64,9 +68,9 @@ def _max_saf_kt(cfg) -> float:
     return cfg["refinery_yield"] * cfg["depot_yield"] * float(_BIO.kt.sum())
 
 
-def _docs():
+def _docs(distances: Distances = "official"):
     try:
-        return build_all()
+        return build_all(outputs_dir(distances))
     except NoPlan as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -99,13 +103,13 @@ def config():
 
 
 @app.get("/api/scenarios")
-def scenarios():
-    return scenario_index(_docs(), prefix="/api/results/")
+def scenarios(distances: Distances = "official"):
+    return scenario_index(_docs(distances), prefix="/api/results/")
 
 
 @app.get("/api/results/{scenario}")
-def results(scenario: str):
-    docs = _docs()
+def results(scenario: str, distances: Distances = "official"):
+    docs = _docs(distances)
     if scenario not in docs:
         raise HTTPException(status_code=404, detail=f"Unknown scenario '{scenario}'. Options: {sorted(docs)}")
     return docs[scenario]
@@ -129,20 +133,14 @@ def solve(req: SolveRequest):
         raise HTTPException(status_code=409, detail="A solve is already running. Try again when it finishes.")
     try:
         t0 = time.perf_counter()
-        res = solve_by_mix(cfg, bio=_BIO, ap=_AP, geo=_GEO, time_limit=req.timeLimitS, log=lambda *_: None)
-        write_outputs(cfg, res)
+        res, docs = pipeline.run(cfg, req.distances, req.timeLimitS, bio=_BIO, ap=_AP, geo=_GEO,
+                                 fetch_routes=req.fetchRoutes, static=req.writeStatic and WEB_DATA.parent.exists(),
+                                 log=lambda *_: None)
         if not res.ok:
             # Never present an unsolved result as a plan (CLAUDE.md 6.2).
             raise HTTPException(status_code=422, detail=f"{res.status}: {res.message}")
-        baselines.run(cfg, res.costs["total_annual_usd"])
-        verify.run()
-        new_routes = fetch_plan_routes(cfg, log=lambda *_: None) if req.fetchRoutes else 0
-        docs = build_all()
-        if req.writeStatic and WEB_DATA.parent.exists():
-            write_static(docs)
         doc = docs["optimised"]
         doc["meta"]["pipelineSeconds"] = round(time.perf_counter() - t0, 1)
-        doc["meta"]["newRoutesFetched"] = new_routes
         return doc
     finally:
         _solve_lock.release()

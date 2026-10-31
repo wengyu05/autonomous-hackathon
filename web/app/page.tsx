@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import KpiCard from "@/components/KpiCard";
@@ -10,6 +10,7 @@ import { buildKpis } from "@/lib/kpis";
 import { num } from "@/lib/format";
 import { solve, solverOnline } from "@/lib/solver";
 import { useResults } from "@/lib/useResults";
+import type { Distances } from "@/lib/types";
 
 /** Solver result for the optimised plan, shown whichever plan is on the map (as the Streamlit app does). */
 function StatusBar({ meta }: { meta: NonNullable<ReturnType<typeof useResults>["data"]>["meta"] }) {
@@ -37,7 +38,12 @@ function StatusBar({ meta }: { meta: NonNullable<ReturnType<typeof useResults>["
  * on top; the map beside the data tabs.
  */
 export default function Dashboard() {
-  const { scenarios, scenarioId, setScenarioId, data, error, loading, file, reload } = useResults();
+  const [distances, setDistances] = useState<Distances>("official");
+  const { scenarios, scenarioId, setScenarioId, data, error, loading, file, reload } = useResults(distances);
+  // The sidebar's airports and limit, kept while a mode with no saved plan is selected so it can be switched back.
+  const lastData = useRef(data);
+  if (data) lastData.current = data;
+  const side = data ?? lastData.current;
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [solving, setSolving] = useState(false);
@@ -51,14 +57,14 @@ export default function Dashboard() {
   }, []);
 
   // Stable object so the sidebar's boxes only reset when the solved-for demand really changes.
-  const demandKey = JSON.stringify(data?.meta?.demandKt ?? {});
+  const demandKey = JSON.stringify(side?.meta?.demandKt ?? {});
   const demandKt = useMemo(() => JSON.parse(demandKey) as Record<string, number>, [demandKey]);
 
   const onSolve = async (demand: Record<string, number>, timeLimitS: number) => {
     setSolving(true);
     setSolveError(null);
     try {
-      await solve(demand, timeLimitS);
+      await solve(demand, timeLimitS, distances);
       setOnline(true);
       setScenarioId("optimised");
       reload();
@@ -77,13 +83,15 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white md:flex-row">
-      {data && (
+      {side && (
         <Sidebar
-          airports={data.airports}
+          airports={side.airports}
           demandKt={demandKt}
-          maxTotalDemandKt={data.meta?.maxTotalDemandKt ?? 1360}
+          maxTotalDemandKt={side.meta?.maxTotalDemandKt ?? 1360}
           scenarioId={scenarioId}
           onScenarioChange={setScenarioId}
+          distances={distances}
+          onDistancesChange={setDistances}
           onSolve={onSolve}
           solving={solving}
           solveError={solveError}
@@ -132,12 +140,12 @@ export default function Dashboard() {
                       </button>
                     </>
                   ) : (
-                    "Truck routes follow OpenStreetMap roads (routing by OSRM); arrows show which way the trucks drive. Hover a marker or line for details; click a site to show only its routes."
+                    `${data.flows.some((f) => f.path) ? "Truck routes follow OpenStreetMap roads (routing by OSRM)" : "Lines are straight: distances are great-circle km × 1.3, as the organisers specify"}; arrows show which way the trucks drive. Hover a marker or line for details; click a site to show only its routes.`
                   )}
                 </p>
-                <p className="border-l-2 border-amber-500 bg-amber-50 p-3 text-xs text-amber-900">
-                  <b>Known limit: Tarakan (TRK) is on an island.</b> Its SAF reaches it by the ferry in the road network,
-                  priced at the truck rate. A real plan needs a barge or ferry tariff (assumption A12).
+                <p className="border-l-2 border-sky-600 bg-sky-50 p-3 text-xs text-sky-900">
+                  <b>Tarakan (TRK) is on an island.</b> Its last leg is a barge at the same $0.08 per t·km as the truck leg,
+                  with no extra fixed cost, as the organisers specify (assumption A12).
                 </p>
               </div>
               <DataTabs data={data} query={query} selectedId={selectedId} onSelect={setSelectedId} />

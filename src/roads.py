@@ -37,7 +37,9 @@ class RoadNetwork:
         self.log = log
         empty = {"source": f"OSRM car profile, {self.server}", "snap_km": {}, "km": {}}
         self.m = json.loads(self.matrix_path.read_text()) if self.matrix_path.exists() else empty
-        self.routes = json.loads(self.routes_path.read_text()) if self.routes_path.exists() else {}
+        # Road shapes are only drawn when distances come from roads; great-circle plans draw straight lines.
+        self.enabled = rc.get("source", "haversine") == "osrm"
+        self.routes = json.loads(self.routes_path.read_text()) if self.enabled and self.routes_path.exists() else {}
         self._last_call = 0.0
 
     # ----- OSRM calls -----
@@ -114,6 +116,8 @@ class RoadNetwork:
 
     def routes_for(self, flows: pd.DataFrame, log=None):
         """Fetch any missing route shapes for a flows table. Returns how many were fetched."""
+        if not self.enabled:
+            return 0
         missing = [(r.from_lat, r.from_lon, r.to_lat, r.to_lon) for r in flows.itertuples()
                    if f"{key(r.from_lat, r.from_lon)}|{key(r.to_lat, r.to_lon)}" not in self.routes
                    and key(r.from_lat, r.from_lon) != key(r.to_lat, r.to_lon)]

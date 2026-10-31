@@ -1,0 +1,13 @@
+item,usd,basis
+CapEx one-time: depots,105750000.0,one-time
+CapEx one-time: refineries,4590000000.0,one-time
+CapEx annualised,234787500.0,per year
+Fixed OpEx,234787500.0,per year
+Variable OpEx: depots,24149999.999996904,per year
+Variable OpEx: refineries,329999999.99994683,per year
+Logistics: biomass to depot,48617597.91914514,per year
+Logistics: depot to refinery,5654443.206167608,per year
+Logistics: refinery to airport,48813855.85945872,per year
+Sea surcharge (Tarakan),0.0,per year
+Total annual cost,926810896.9847152,per year
+Cost per tonne SAF,772.3424141540537,USD/t

@@ -60,6 +60,7 @@ def check_plan(cfg, demand, flows_path, facs_path, expected_totals: dict, enforc
     for r in facs:
         r["n_small"], r["n_large"] = int(r["n_small"]), int(r["n_large"])
         r["lat"], r["lon"] = float(r["lat"]), float(r["lon"])
+        r["input_small_kt"], r["input_large_kt"] = float(r["input_small_kt"]), float(r["input_large_kt"])
 
     bio = {r["location_id"]: r for r in read_csv(ROOT / cfg["data"]["biomass_csv"])}
     geo_path = ROOT / cfg["data"]["geo_json"]
@@ -67,11 +68,9 @@ def check_plan(cfg, demand, flows_path, facs_path, expected_totals: dict, enforc
     if geo_path.exists():
         offshore = {k for k, v in json.loads(geo_path.read_text())["site_checks"].items() if not v["on_land"]}
     airports = {}
-    ap_file = sorted(ROOT.glob(cfg["data"]["airports_glob"]))[0]
-    with open(ap_file, newline="") as f:
-        for row in csv.reader(f):
-            if row[4] in cfg["airports"]:
-                airports[row[4]] = (float(row[6]), float(row[7]))
+    for row in read_csv(ROOT / cfg["data"]["airports_csv"]):
+        if row["iata"] in cfg["airports"]:
+            airports[row["iata"]] = (float(row["latitude"]), float(row["longitude"]))
 
     depots = {r["site_id"]: r for r in facs if r["type"] == "depot"}
     refs = {r["site_id"]: r for r in facs if r["type"] == "refinery"}
@@ -112,7 +111,7 @@ def check_plan(cfg, demand, flows_path, facs_path, expected_totals: dict, enforc
         dist_check = "Distances = OSRM road km + off-road access (cached road matrix)"
     else:
         truck_km = lambda a, b: cfg["circuity"] * haversine_km(*a, *b)
-        dist_check = "Distances = haversine x circuity"
+        dist_check = "Distances = great-circle x circuity"
     ends = {"biomass_to_depot": ("bio", "dep"), "depot_to_refinery": ("dep", "ref"), "refinery_to_airport": ("ref", "air")}
     worst_xy, worst_km = 0.0, 0.0
     for f in flows:
@@ -134,12 +133,21 @@ def check_plan(cfg, demand, flows_path, facs_path, expected_totals: dict, enforc
 
     fac = cfg["facilities"]
     cap = lambda t, r: r["n_small"] * fac[t]["Small"]["capacity_kt"] + r["n_large"] * fac[t]["Large"]["capacity_kt"]
+
+    def size_load(t, r, load_of):
+        """Per size: the biomass into its units must fit their capacity (capacity basis applied)."""
+        return [f"{r['site_id']} {s}: {load_of(r[f'input_{s.lower()}_kt']):.3f} > {r[f'n_{s.lower()}'] * fac[t][s]['capacity_kt']}"
+                for s in ("Small", "Large")
+                if load_of(r[f"input_{s.lower()}_kt"]) > r[f"n_{s.lower()}"] * fac[t][s]["capacity_kt"] + tol]
     # 2-3. Depots
     v_cap, v_bal = [], []
     for j, r in depots.items():
         inflow, outflow = total(l1, "to_id", j), total(l2, "from_id", j)
         if inflow > cap("depot", r) + tol:
             v_cap.append(f"{j}: {inflow:.3f} > {cap('depot', r)}")
+        v_cap += size_load("depot", r, lambda kt: kt)
+        if abs(r["input_small_kt"] + r["input_large_kt"] - inflow) > tol:
+            v_bal.append(f"{j}: Small + Large intake {r['input_small_kt'] + r['input_large_kt']:.6f} vs inflow {inflow:.6f}")
         if abs(outflow - cfg["depot_yield"] * inflow) > tol:
             v_bal.append(f"{j}: out {outflow:.6f} vs {cfg['depot_yield']} x in {inflow:.6f}")
     check(f"2. Depot capacity ({len(depots)} depot sites)", not v_cap, "; ".join(v_cap))
@@ -151,6 +159,9 @@ def check_plan(cfg, demand, flows_path, facs_path, expected_totals: dict, enforc
         load = inflow if cfg["refinery_capacity_basis"] == "input" else cfg["refinery_yield"] * inflow
         if load > cap("refinery", r) + tol:
             v_cap.append(f"{k}: {load:.3f} > {cap('refinery', r)}")
+        v_cap += size_load("refinery", r, lambda kt: kt if cfg["refinery_capacity_basis"] == "input" else cfg["refinery_yield"] * kt)
+        if abs(r["input_small_kt"] + r["input_large_kt"] - inflow) > tol:
+            v_bal.append(f"{k}: Small + Large intake {r['input_small_kt'] + r['input_large_kt']:.6f} vs inflow {inflow:.6f}")
         if abs(outflow - cfg["refinery_yield"] * inflow) > tol:
             v_bal.append(f"{k}: out {outflow:.6f} vs yield x in {inflow:.6f}")
     check(f"4. Refinery capacity, {cfg['refinery_capacity_basis']} basis ({len(refs)} refinery sites)", not v_cap, "; ".join(v_cap))
@@ -171,11 +182,13 @@ def check_plan(cfg, demand, flows_path, facs_path, expected_totals: dict, enforc
 
     # Cost, recomputed from scratch
     a = cfg["capex_annualisation"]
-    crf = a["rate"] / (1 - (1 + a["rate"]) ** -a["years"])
+    crf = 1 / a["years"] if a["rate"] == 0 else a["rate"] / (1 - (1 + a["rate"]) ** -a["years"])
     capex = sum(r["n_small"] * fac[r["type"]]["Small"]["capex_usd"] + r["n_large"] * fac[r["type"]]["Large"]["capex_usd"] for r in facs)
+    variable = sum(r[f"input_{s.lower()}_kt"] * 1000 * fac[r["type"]][s].get("variable_opex_usd_per_t", 0)
+                   for r in facs for s in ("Small", "Large"))
     logistics = sum(f["kt"] * 1000 * f["km"] * cfg["transport"][f["leg"]]["usd_per_tkm"] for f in flows)
     sea = sum(f["kt"] * 1000 * cfg["sea_leg"]["surcharge_usd_per_t"] for f in l3 if f["to_id"] in cfg["sea_leg"]["airports"])
-    recomputed = (crf + cfg["opex_rate"]) * capex + logistics + sea
+    recomputed = (crf + cfg["opex_rate"]) * capex + variable + logistics + sea
     usd_tol = cfg["verify"]["cost_tolerance_usd"]
     for source, value in expected_totals.items():
         check(f"Recomputed total cost = {source}", abs(recomputed - value) <= usd_tol,

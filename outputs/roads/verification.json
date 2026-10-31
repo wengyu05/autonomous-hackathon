@@ -1,0 +1,212 @@
+{
+  "status": "Feasible (time limit)",
+  "gap": 0.09204779234080683,
+  "all_pass": true,
+  "recomputed_total_usd": 926810896.9847152,
+  "checks": [
+    {
+      "check": "All flows non-negative",
+      "pass": true,
+      "detail": "89 flows"
+    },
+    {
+      "check": "Every flow starts and ends at a built facility, site or airport",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Flow coordinates match the source files",
+      "pass": true,
+      "detail": "max diff 0.00e+00 deg"
+    },
+    {
+      "check": "Distances = OSRM road km + off-road access (cached road matrix)",
+      "pass": true,
+      "detail": "max diff 0.00e+00 km"
+    },
+    {
+      "check": "1. Supply (<= supply) at all 80 sites",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "2. Depot capacity (8 depot sites)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "3. Depot mass balance",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "4. Refinery capacity, input basis (6 refinery sites)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "5. Refinery mass balance",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "6. Demand met at all 4 airports",
+      "pass": true,
+      "detail": "PNK 300.000/300, PKN 300.000/300, BPN 300.000/300, TRK 300.000/300"
+    },
+    {
+      "check": "7. Facilities per site within limits",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "No depot or refinery at an offshore site (A13)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Recomputed total cost = solver objective",
+      "pass": true,
+      "detail": "recomputed $926,810,896.98 vs $926,810,896.98"
+    },
+    {
+      "check": "Recomputed total cost = cost_breakdown.csv",
+      "pass": true,
+      "detail": "recomputed $926,810,896.98 vs $926,810,896.98"
+    }
+  ],
+  "baselines": {
+    "B1": {
+      "all_pass": true,
+      "recomputed_total_usd": 1424597576.2488,
+      "checks": [
+        {
+          "check": "All flows non-negative",
+          "pass": true,
+          "detail": "135 flows"
+        },
+        {
+          "check": "Every flow starts and ends at a built facility, site or airport",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "Flow coordinates match the source files",
+          "pass": true,
+          "detail": "max diff 0.00e+00 deg"
+        },
+        {
+          "check": "Distances = OSRM road km + off-road access (cached road matrix)",
+          "pass": true,
+          "detail": "max diff 0.00e+00 km"
+        },
+        {
+          "check": "1. Supply (<= supply) at all 80 sites",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "2. Depot capacity (59 depot sites)",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "3. Depot mass balance",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "4. Refinery capacity, input basis (1 refinery sites)",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "5. Refinery mass balance",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "6. Demand met at all 4 airports",
+          "pass": true,
+          "detail": "PNK 300.000/300, PKN 300.000/300, BPN 300.000/300, TRK 300.000/300"
+        },
+        {
+          "check": "No depot or refinery at an offshore site (A13)",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "Recomputed total cost = baselines.csv",
+          "pass": true,
+          "detail": "recomputed $1,424,597,576.25 vs $1,424,597,576.25"
+        }
+      ]
+    },
+    "B2": {
+      "all_pass": true,
+      "recomputed_total_usd": 1148607849.24884,
+      "checks": [
+        {
+          "check": "All flows non-negative",
+          "pass": true,
+          "detail": "144 flows"
+        },
+        {
+          "check": "Every flow starts and ends at a built facility, site or airport",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "Flow coordinates match the source files",
+          "pass": true,
+          "detail": "max diff 0.00e+00 deg"
+        },
+        {
+          "check": "Distances = OSRM road km + off-road access (cached road matrix)",
+          "pass": true,
+          "detail": "max diff 0.00e+00 km"
+        },
+        {
+          "check": "1. Supply (<= supply) at all 80 sites",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "2. Depot capacity (66 depot sites)",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "3. Depot mass balance",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "4. Refinery capacity, input basis (4 refinery sites)",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "5. Refinery mass balance",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "6. Demand met at all 4 airports",
+          "pass": true,
+          "detail": "PNK 300.000/300, PKN 300.000/300, BPN 300.000/300, TRK 300.000/300"
+        },
+        {
+          "check": "No depot or refinery at an offshore site (A13)",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "check": "Recomputed total cost = baselines.csv",
+          "pass": true,
+          "detail": "recomputed $1,148,607,849.25 vs $1,148,607,849.25"
+        }
+      ]
+    }
+  }
+}

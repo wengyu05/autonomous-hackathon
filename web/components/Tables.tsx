@@ -260,7 +260,7 @@ export function BaselineTable({ data }: { data: Results }) {
         ]}
       />
       <p className={note}>
-        All three plans use the same road distances and cost function and pass the same independent checks. Savings are
+        All three plans use the same distances and cost function and pass the same independent checks. Savings are
         modelled, not measured, and depend on the demand entered.
       </p>
     </>

@@ -2,7 +2,15 @@
 
 Chooses where to build biomass depots and SAF refineries in Kalimantan, what size to make them, which
 biomass sites to draw from, and how to truck everything to the 4 international airports, at the lowest
-annual cost (CapEx + OpEx + logistics). The planner keys in each airport's SAF demand; the model re-plans.
+annual cost (annualised CapEx + fixed OpEx + variable OpEx + transport). The planner keys in each
+airport's SAF demand (300 kt each in the organisers' update); the model re-plans.
+
+**Challenge update (rev 4).** The model follows the organisers' updated rules and files
+(`data/challenge3_parameters.xlsx`, `data/challenge3_airports_4.csv`; `python -m src.load_data` checks
+config.yaml against them): capacity is biomass intake, yield 0.20, no depot mass loss, CapEx
+straight-line over 20 years with no interest, fixed OpEx 5% of CapEx, variable OpEx per tonne of biomass
+in (depots $5 Small / $4 Large, refineries $60 Small / $55 Large), distance = great-circle × 1.3, and
+Tarakan's last leg is a barge at $0.08 per t·km with no extra fixed cost.
 
 The decisions come from an exact mixed-integer linear program (PuLP + HiGHS). Every assumption lives in
 [config.yaml](config.yaml); [CLAUDE.md](CLAUDE.md) is the full spec.
@@ -52,7 +60,16 @@ The Next.js dashboard (`web/`) reads static JSON from `web/public/data/`, so it 
 
 ## Truck distances
 
-Every truck route uses real road distance from OpenStreetMap, routed by the public OSRM server
+By default distance = great-circle km × 1.3, the organisers' rule (`roads.source: haversine`), and the
+map draws straight lines. The Next.js dashboard has a **Distances** switch (Official / Real roads). Each
+mode keeps its own results: `outputs/` and `web/public/data/` for official, `outputs/roads/` and
+`web/public/data/roads/` for real roads. Rebuild either from the command line:
+
+```bash
+.venv/bin/python -m src.pipeline --distances roads --time-limit 300
+```
+ Real roads remain available as a sensitivity run with `roads.source: osrm`:
+every truck route then uses real road distance from OpenStreetMap, routed by the public OSRM server
 (`router.project-osrm.org`). Road km = the OSRM route between the nearest road points + the straight
 stretch from each site to its road × 1.3. Distances are cached in `data/road_matrix.json` and route
 shapes in `data/road_routes.json`, so solves run offline once the cache is filled:
@@ -61,8 +78,6 @@ shapes in `data/road_routes.json`, so solves run offline once the cache is fille
 .venv/bin/python -m src.roads            # fill the distance cache for all candidate sites (~20 s)
 .venv/bin/python -m src.roads --routes   # fetch route shapes for the plans in outputs/ (~1 per second)
 ```
-
-Set `roads.source: haversine` in config.yaml to compare against straight line × 1.3.
 
 ## How the solve works
 
@@ -80,21 +95,22 @@ Set `roads.source: haversine` in config.yaml to compare against straight line ×
 
 - **13 of the 80 biomass sites (1,153 kt) sit in the sea** in the organisers' file, almost all off
   Ketapang. Their biomass is still available, but no facility is built there (assumption A13).
-- **Tarakan (TRK) is on an island.** Trucks cannot reach it; the model prices that leg as road unless a
-  barge surcharge is set (A12).
-- **Neither data file has airport fuel demand.** Demand is a user input (170 kt per airport by default,
-  a placeholder).
+- **Tarakan (TRK) is on an island.** Its last leg is a barge, priced at the same $0.08 per t·km with no
+  extra fixed cost, as the organisers specify (A12).
+- **Demand is 300 kt SAF per airport** (1,200 kt, so 6,000 of the 6,800 kt of biomass is needed). It
+  stays editable in the dashboards.
 - **Depots cluster next to refineries.** With no depot mass loss and leg 2 costing more per tonne-km
   than leg 1, the cheapest place to pre-process is at the refinery.
-- **Depot Small/Large is a cost tie** ($15k per kt either way); the model reports capacity as
-  Large + Small packing.
+- **Depot Small/Large is no longer a tie.** Both cost $15k per kt to build, but a Large depot costs
+  $4 per tonne to run against $5 for a Small one, so the model prefers Large where it fits.
 
 ## Data sources
 
 | File | Source | Licence |
 |---|---|---|
 | `data/kalimantan_80_locations_6800kt_full_range.csv` | Hackathon organisers (Autonomous SG 2026, Challenge #3) | Organisers' terms |
-| `data/airports.dat` | OpenFlights / OurAirports, as supplied by the organisers | ODbL / public domain |
+| `data/challenge3_airports_4.csv`, `data/challenge3_parameters.xlsx` | Hackathon organisers (challenge update) | Organisers' terms |
+| `data/airports.dat` | OpenFlights / OurAirports, as supplied by the organisers (no longer used by the model) | ODbL / public domain |
 | `data/road_matrix.json`, `data/road_routes.json` | Road distances and shapes from OSRM on OpenStreetMap data | © OpenStreetMap contributors, ODbL |
 | `data/borneo_geo.json` | Natural Earth 1:10m land and borders, clipped to Borneo | Public domain |
 

@@ -24,11 +24,19 @@ def test_haversine_pontianak_to_balikpapan(cfg):
     assert 830 < d < 855  # straight line across Borneo
 
 
+def test_official_distance_is_great_circle_times_circuity(cfg):
+    from src.distances import road_km_matrix, straight_km_matrix
+    assert cfg["roads"]["source"] == "haversine" and cfg["circuity"] == 1.3   # the challenge update's rule
+    land = load_biomass(cfg).query("not offshore").head(20)
+    assert road_km_matrix(land, land, cfg) == pytest.approx(1.3 * straight_km_matrix(land, land, 1.0))
+
+
 def test_road_km_is_never_shorter_than_straight_line(cfg):
     from src.distances import road_km_matrix, straight_km_matrix
+    osrm = {**cfg, "roads": {**cfg["roads"], "source": "osrm"}}   # cached real-road matrix (sensitivity)
     bio = load_biomass(cfg)
     land = bio[~bio.offshore].head(20)
-    road = road_km_matrix(land, land, cfg)
+    road = road_km_matrix(land, land, osrm)
     straight = straight_km_matrix(land, land, 1.0)
     assert (road >= straight * 0.98 - 0.5).all()   # small slack for road snapping
     assert road.max() > 1.2 * straight.max()        # Borneo roads wind a lot
@@ -41,16 +49,19 @@ def test_kt_to_t_conversion():
 
 def test_capital_recovery_factor():
     assert capital_recovery_factor(0.08, 20) == pytest.approx(0.10185, abs=1e-5)
+    assert capital_recovery_factor(0.0, 20) == pytest.approx(0.05)   # straight-line, no interest
 
 
 def test_evaluate_matches_hand_calculation(cfg):
-    fac = pd.DataFrame([{"type": "refinery", "n_small": 1, "n_large": 0},
-                        {"type": "depot", "n_small": 0, "n_large": 1}])
+    fac = pd.DataFrame([{"type": "refinery", "n_small": 1, "n_large": 0, "input_small_kt": 10.0, "input_large_kt": 0.0},
+                        {"type": "depot", "n_small": 0, "n_large": 1, "input_small_kt": 0.0, "input_large_kt": 10.0}])
     flows = pd.DataFrame([{"leg": "biomass_to_depot", "to_id": "D", "kt": 10.0, "km": 50.0},
                           {"leg": "refinery_to_airport", "to_id": "PNK", "kt": 2.0, "km": 100.0}])
     c = evaluate(cfg, fac, flows)
-    factor = capital_recovery_factor(0.08, 20) + 0.05
-    expected = factor * (480e6 + 4.5e6) + 10_000 * 50 * 0.10 + 2_000 * 100 * 0.08
+    factor = 1 / 20 + 0.05                                  # straight-line CapEx + fixed OpEx
+    variable = 10_000 * 60 + 10_000 * 4                     # Small refinery $60/t, Large depot $4/t
+    expected = factor * (480e6 + 4.5e6) + variable + 10_000 * 50 * 0.10 + 2_000 * 100 * 0.08
+    assert c["variable_opex_usd"] == pytest.approx(variable)
     assert c["total_annual_usd"] == pytest.approx(expected)
     assert c["cost_per_t_saf_usd"] == pytest.approx(expected / 2_000)
 

@@ -42,7 +42,8 @@ def table(df: pd.DataFrame, num: dict | None = None) -> str:
 
 
 def cost_bars(costs: pd.DataFrame) -> str:
-    keep = ["CapEx annualised", "OpEx", "Logistics: biomass to depot", "Logistics: depot to refinery",
+    keep = ["CapEx annualised", "Fixed OpEx", "Variable OpEx: depots", "Variable OpEx: refineries",
+            "Logistics: biomass to depot", "Logistics: depot to refinery",
             "Logistics: refinery to airport", "Sea surcharge (Tarakan)"]
     d = costs.set_index("item").loc[keep, "usd"]
     top = d.max() or 1
@@ -83,7 +84,7 @@ def plan_block(key_, fac, flows, ap, sol, res, net, bio):
     r = flows.copy()
     r["Leg"] = r.leg.map(lambda l: LEGS[l][0])
     r = r[["Leg", "from_id", "to_id", "kt", "km", "cost_usd", "trips_large_truck"]]
-    r.columns = ["Leg", "From", "To", "kt/yr", "Road km", "USD/yr", "Large-truck trips/yr"]
+    r.columns = ["Leg", "From", "To", "kt/yr", "km", "USD/yr", "Large-truck trips/yr"]
     used = flows[flows.leg == "biomass_to_depot"].groupby("from_id").kt.sum()
 
     costs_tab = (cost_bars(res["costs"]) + table(
@@ -92,13 +93,14 @@ def plan_block(key_, fac, flows, ap, sol, res, net, bio):
         if key_ == "MILP" else '<p class="note">The detailed cost breakdown is for the optimised plan. '
                                'Baseline totals are in the Baselines tab.</p>')
     tabs = {
-        "Airports": table(air, {"Demand (kt)": "{:,.0f}", "Delivered (kt)": "{:,.1f}", "Avg road km": "{:,.0f}"})
+        "Airports": table(air, {"Demand (kt)": "{:,.0f}", "Delivered (kt)": "{:,.1f}", "Avg km": "{:,.0f}"})
         + f'<p class="note">Biomass used: <b>{used.sum():,.0f} kt</b> from <b>{len(used)} of 80 sites</b>.</p>',
         "Facilities": table(f, {"In (kt/yr)": "{:,.1f}", "Out (kt/yr)": "{:,.1f}", "Used": "{:.0f}%"})
         + '<p class="note">Small and Large depots cost the same per kt, so the depot Small/Large split is a cost tie.</p>',
         "Costs": costs_tab,
-        "Routes": table(r, {"kt/yr": "{:,.1f}", "Road km": "{:,.0f}", "USD/yr": "${:,.0f}", "Large-truck trips/yr": "{:,}"})
-        + '<p class="note">Road km = OpenStreetMap route (OSRM) + the straight stretch from each site to its road × 1.3.</p>',
+        "Routes": table(r, {"kt/yr": "{:,.1f}", "km": "{:,.0f}", "USD/yr": "${:,.0f}", "Large-truck trips/yr": "{:,}"})
+        + ('<p class="note">km = OpenStreetMap route (OSRM) + the straight stretch from each site to its road × 1.3.</p>'
+           if net.enabled else '<p class="note">km = great-circle distance × 1.3, as the organisers specify.</p>'),
     }
     return kpis, map_html, tabs
 
@@ -138,7 +140,7 @@ def build(out_path=DEFAULT_PATH):
     mix = pd.DataFrame(sol.get("refinery_mix_search", []))
     shared = {
         "Baselines": table(pd.DataFrame(base_rows), {"Cost per year": "${:,.0f}", "MILP saves": "{:.1f}%", "$/t SAF": "${:,.0f}"})
-        + '<p class="note">All three plans use the same road distances and cost function and pass the same independent '
+        + '<p class="note">All three plans use the same distances and cost function and pass the same independent '
           'checks. Savings are modelled, not measured.</p>',
         "Checks": f'<p class="note"><b>Solver:</b> {sol["config"]["solver"]["name"]} · <b>{sol["status"]}</b> · gap {gap} '
                   f'(target {sol["config"]["solver"]["mip_gap"]:.1%}) · {sol["solve_time_s"]:.0f} s</p>' + table(checks)
@@ -167,10 +169,11 @@ def build(out_path=DEFAULT_PATH):
   <div class="kpis">{kpis}</div>
   <div class="grid">
     <div class="mapcol"><iframe title="Map: {html.escape(name)}" srcdoc="{html.escape(map_html, quote=True)}"></iframe>
-      <p class="note">Truck routes follow OpenStreetMap roads (routing by OSRM). Hover lines and markers for details.
-      © OpenStreetMap contributors.</p>
-      <div class="banner warn"><b>Known limit: Tarakan (TRK) is on an island.</b> Its SAF reaches it by the ferry in the
-      road network, priced at the truck rate (assumption A12).</div></div>
+      <p class="note">{"Truck routes follow OpenStreetMap roads (routing by OSRM)." if net.enabled else
+      "Lines are straight: distances are great-circle km × 1.3, as the organisers specify."} Hover lines and markers for
+      details. © OpenStreetMap contributors.</p>
+      <div class="banner warn"><b>Tarakan (TRK) is on an island.</b> Its last leg is a barge at the same $0.08 per t·km,
+      with no extra fixed cost, as the organisers specify (assumption A12).</div></div>
     <div class="datacol"><div class="tabs">{tab_buttons}</div>{panes}
       {"".join(f'<section class="pane" data-tab="{t}" hidden>{shared[t]}</section>' for t in ("Baselines", "Checks", "Assumptions"))}
     </div>
@@ -218,7 +221,7 @@ th {{ font-weight:600; color:var(--muted); font-size:12.5px; background:#fafbfa;
   .bar {{ grid-template-columns:130px 1fr 60px }} }}
 </style></head><body><div class="wrap">
 <h1>Kalimantan SAF Planner</h1>
-<p class="sub">Where to build biomass depots and SAF refineries, and how to truck everything along real roads to
+<p class="sub">Where to build biomass depots and SAF refineries, and how to move everything by truck (and barge to Tarakan) to
 Kalimantan's four international airports at the lowest annual cost.</p>
 <p class="stamp">Saved {datetime.now():%d %b %Y, %H:%M} from the dashboard. This file is a snapshot; run the dashboard to re-solve.</p>
 {banner}

@@ -1,0 +1,3 @@
+baseline,name,total_annual_usd,capex_onetime_usd,capex_plus_opex_annual_usd,variable_opex_usd,logistics_usd,cost_per_t_saf_usd,refinery_sites,refineries,depot_sites,milp_saving_pct
+B1,One central refinery,1424597576.2488003,4743000000.0,474300000.0,360000000.00000006,590297576.2488002,1187.1646468740003,1,6 Large + 0 Small,59,34.942266332843225
+B2,Refinery at every airport,1148607849.24884,5707500000.0,570750000.0,362745180.81285435,215112668.43598586,957.1732077073669,4,6 Large + 2 Small,66,19.310067610035432

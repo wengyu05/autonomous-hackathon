@@ -114,15 +114,21 @@ def solve(cfg, bio=None, ap=None, geo=None, time_limit=None, log=print, ref_mix=
     x = {(i, j): pulp.LpVariable(f"x_{i}_{j}", 0) for i, j in arcs_ij}
     w = {(j, k): pulp.LpVariable(f"w_{j}_{k}", 0) for j in range(nJ) for k in range(nK)}
     z = {(k, a): pulp.LpVariable(f"z_{k}_{a}", 0) for k in range(nK) for a in range(nA)}
+    # Biomass into the Small and the Large units at each site: variable OpEx differs by size.
+    dep_in = {(j, s): pulp.LpVariable(f"depin_{j}_{s}", 0) for j in range(nJ) for s in SIZES}
+    ref_in = {(k, s): pulp.LpVariable(f"refin_{k}_{s}", 0) for k in range(nK) for s in SIZES}
 
     factor = annual_capex_factor(cfg)
     capex = dep_capex + pulp.lpSum(fac["refinery"][s]["capex_usd"] * n_ref[k, s] for k in range(nK) for s in SIZES)
+    variable = KT_TO_T * (
+        pulp.lpSum(fac["depot"][s]["variable_opex_usd_per_t"] * dep_in[j, s] for j in range(nJ) for s in SIZES)
+        + pulp.lpSum(fac["refinery"][s]["variable_opex_usd_per_t"] * ref_in[k, s] for k in range(nK) for s in SIZES))
     logistics = KT_TO_T * (
         rate["biomass_to_depot"] * pulp.lpSum(d_ij[i, j] * v for (i, j), v in x.items())
         + rate["depot_to_refinery"] * pulp.lpSum(d_jk[j, k] * v for (j, k), v in w.items())
         + rate["refinery_to_airport"] * pulp.lpSum(d_ka[k, a] * v for (k, a), v in z.items()))
     sea_cost = KT_TO_T * sea_usd_t * pulp.lpSum(z[k, a] for k in range(nK) for a in range(nA) if ap.iata[a] in sea)
-    m += factor * capex + logistics + sea_cost
+    m += factor * capex + variable + logistics + sea_cost
 
     out_i = {i: [] for i in range(nI)}
     in_j = {j: [] for j in range(nJ)}
@@ -134,14 +140,20 @@ def solve(cfg, bio=None, ap=None, geo=None, time_limit=None, log=print, ref_mix=
         m += (flow == bio.kt[i]) if cfg["mode"] == "process_all" else (flow <= bio.kt[i]), f"supply_{i}"
     for j in range(nJ):
         inflow = pulp.lpSum(in_j[j])
-        m += inflow <= dep_cap[j], f"depcap_{j}"                                                                 # 2
-        m += pulp.lpSum(w[j, k] for k in range(nK)) == y_dep * inflow, f"depbal_{j}"                           # 3
-        if not modular:
+        m += pulp.lpSum(dep_in[j, s] for s in SIZES) == inflow, f"depsplit_{j}"
+        if modular:  # one pool of modules; the size split only matters for variable OpEx, which is equal here
+            m += inflow <= dep_cap[j], f"depcap_{j}"                                                             # 2
+        else:
+            for s in SIZES:
+                m += dep_in[j, s] <= fac["depot"][s]["capacity_kt"] * n_dep[j, s], f"depcap_{j}_{s}"            # 2
             m += dep_units[j] <= max_dep, f"deplim_{j}"                                                          # 7
+        m += pulp.lpSum(w[j, k] for k in range(nK)) == y_dep * inflow, f"depbal_{j}"                           # 3
     for k in range(nK):
         inflow = pulp.lpSum(w[j, k] for j in range(nJ))
-        load = inflow if cfg["refinery_capacity_basis"] == "input" else y_ref * inflow
-        m += load <= pulp.lpSum(fac["refinery"][s]["capacity_kt"] * n_ref[k, s] for s in SIZES), f"refcap_{k}"  # 4
+        m += pulp.lpSum(ref_in[k, s] for s in SIZES) == inflow, f"refsplit_{k}"
+        for s in SIZES:
+            load = ref_in[k, s] if cfg["refinery_capacity_basis"] == "input" else y_ref * ref_in[k, s]
+            m += load <= fac["refinery"][s]["capacity_kt"] * n_ref[k, s], f"refcap_{k}_{s}"                    # 4
         m += pulp.lpSum(z[k, a] for a in range(nA)) == y_ref * inflow, f"refbal_{k}"                            # 5
         m += pulp.lpSum(n_ref[k, s] for s in SIZES) <= cfg["max_per_site"]["refinery"], f"reflim_{k}"         # 7
     for a in range(nA):
@@ -186,7 +198,7 @@ def solve(cfg, bio=None, ap=None, geo=None, time_limit=None, log=print, ref_mix=
     gap = None if best_bound is None else max(0.0, (obj - best_bound) / abs(obj))
 
     ref_counts = lambda k: tuple(round(n_ref[k, s].value() or 0) for s in SIZES)
-    facilities = _facilities(cfg, J, K, dep_counts, ref_counts, x, w)
+    facilities = _facilities(cfg, J, K, dep_counts, ref_counts, x, w, dep_in, ref_in)
     flows = _flows(cfg, bio, J, K, ap, x, w, z, d_ij, d_jk, d_ka)
     costs = evaluate(cfg, facilities, flows)
     msg = "" if status == "Optimal" else f"Stopped at the time limit; plan is within {gap:.2%} of optimal." if gap is not None else ""
@@ -213,20 +225,25 @@ def _run_solver(m, sc, time_limit):
 
 
 def _depots_are_modular(dep) -> bool:
+    """Small and Large depots are interchangeable modules: Large = 2 x Small at the same cost per kt
+    and the same variable OpEx per tonne."""
     s, l = dep["Small"], dep["Large"]
     return (l["capacity_kt"] == 2 * s["capacity_kt"]
-            and abs(l["capex_usd"] / l["capacity_kt"] - s["capex_usd"] / s["capacity_kt"]) < 1e-9)
+            and abs(l["capex_usd"] / l["capacity_kt"] - s["capex_usd"] / s["capacity_kt"]) < 1e-9
+            and l.get("variable_opex_usd_per_t", 0) == s.get("variable_opex_usd_per_t", 0))
 
 
-def _facilities(cfg, J, K, dep_counts, ref_counts, x, w) -> pd.DataFrame:
-    """dep_counts / ref_counts: site index -> (n_small, n_large)."""
+def _facilities(cfg, J, K, dep_counts, ref_counts, x, w, dep_in, ref_in) -> pd.DataFrame:
+    """dep_counts / ref_counts: site index -> (n_small, n_large); dep_in / ref_in: biomass kt per size."""
     fac, rows = cfg["facilities"], []
     y_ref = cfg["refinery_yield"]
+    split = {"depot": dep_in, "refinery": ref_in}
     for kind, sites, counts in (("depot", J, dep_counts), ("refinery", K, ref_counts)):
         for idx, site in sites.iterrows():
             ns, nl = counts(idx)
             if ns + nl == 0:
                 continue
+            in_s, in_l = ((split[kind][idx, s].value() or 0.0) for s in SIZES)
             cap = ns * fac[kind]["Small"]["capacity_kt"] + nl * fac[kind]["Large"]["capacity_kt"]
             if kind == "depot":
                 inflow = sum(v.value() or 0 for (i, j), v in x.items() if j == idx)
@@ -237,7 +254,8 @@ def _facilities(cfg, J, K, dep_counts, ref_counts, x, w) -> pd.DataFrame:
                 load = inflow if cfg["refinery_capacity_basis"] == "input" else out
             rows.append({"type": kind, "site_id": site.cid, "site_kind": site.kind, "lat": site.lat, "lon": site.lon,
                          "n_small": ns, "n_large": nl, "size": _size_label(ns, nl), "capacity_kt": cap,
-                         "input_kt": inflow, "output_kt": out, "utilisation_pct": 100 * load / cap})
+                         "input_kt": inflow, "input_small_kt": in_s, "input_large_kt": in_l,
+                         "output_kt": out, "utilisation_pct": 100 * load / cap})
     return pd.DataFrame(rows)
 
 
@@ -291,7 +309,9 @@ def write_outputs(cfg, res: Result, out_dir: Path = ROOT / "outputs"):
     rows = [("CapEx one-time: depots", c["capex_onetime_depot_usd"], "one-time"),
             ("CapEx one-time: refineries", c["capex_onetime_refinery_usd"], "one-time"),
             ("CapEx annualised", c["capex_annualised_usd"], "per year"),
-            ("OpEx", c["opex_usd"], "per year"),
+            ("Fixed OpEx", c["opex_usd"], "per year"),
+            ("Variable OpEx: depots", c["variable_opex_depot_usd"], "per year"),
+            ("Variable OpEx: refineries", c["variable_opex_refinery_usd"], "per year"),
             ("Logistics: biomass to depot", c["logistics_biomass_to_depot_usd"], "per year"),
             ("Logistics: depot to refinery", c["logistics_depot_to_refinery_usd"], "per year"),
             ("Logistics: refinery to airport", c["logistics_refinery_to_airport_usd"], "per year"),
@@ -322,8 +342,13 @@ def solve_by_mix(cfg, bio=None, ap=None, geo=None, time_limit=None, log=print) -
     total_d = sum(demand.values())
     need = total_d / (y_ref if cfg["refinery_capacity_basis"] == "input" else 1)
     biomass_in = total_d / (y_ref * y_dep)
-    dep = fac["depot"]
-    depot_floor = factor * biomass_in * min(dep[s]["capex_usd"] / dep[s]["capacity_kt"] for s in SIZES)
+    dep, ref = fac["depot"], fac["refinery"]
+    # Every plan processes at least `biomass_in` kt through depots and through refineries, so it pays at
+    # least the cheapest depot CapEx per kt and the cheapest variable OpEx on all of it.
+    depot_floor = (factor * biomass_in * min(dep[s]["capex_usd"] / dep[s]["capacity_kt"] for s in SIZES)
+                   + KT_TO_T * biomass_in * min(dep[s].get("variable_opex_usd_per_t", 0) for s in SIZES))
+    ref_var_floor = lambda mx: KT_TO_T * biomass_in * min(
+        ref[s].get("variable_opex_usd_per_t", 0) for s in SIZES if mx[s] > 0)
     cap = {s: fac["refinery"][s]["capacity_kt"] for s in SIZES}
     max_n = {s: math.ceil(need / cap[s]) + 1 for s in SIZES}
     mixes = sorted(
@@ -333,7 +358,8 @@ def solve_by_mix(cfg, bio=None, ap=None, geo=None, time_limit=None, log=print) -
 
     limit = time_limit or cfg["solver"]["time_limit_s"]
     t0, best, runs, bounds = time.time(), None, [], []
-    floor_of = lambda mx: factor * sum(mx[s] * fac["refinery"][s]["capex_usd"] for s in SIZES) + depot_floor
+    floor_of = lambda mx: (factor * sum(mx[s] * fac["refinery"][s]["capex_usd"] for s in SIZES)
+                           + depot_floor + ref_var_floor(mx))
     for n, mix in enumerate(mixes):
         floor = floor_of(mix)
         label = _size_label(mix["Small"], mix["Large"])
