@@ -6,11 +6,11 @@ interface AirportListProps {
   safDelivered: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  /** Optional: when given, each airport also lists its supplying refineries and average road km. */
+  /** Optional: when given, each airport also lists its supplying refineries and average km. */
   flows?: Flow[];
 }
 
-/** Supplying refineries and kt-weighted average road km for one airport. */
+/** Supplying refineries and kt-weighted average km for one airport. */
 function supply(flows: Flow[], id: string) {
   const legs = flows.filter((f) => f.leg === "refinery_airport" && f.to === id);
   const t = legs.reduce((s, f) => s + f.tonnes, 0);
@@ -63,7 +63,7 @@ export default function AirportList({ airports, safDelivered, selectedId, onSele
                   {num(a.deliveredKt, 1)} of {num(a.demandKt)} kt/yr
                   {flows && supply(flows, a.id).from && (
                     <>
-                      {" "}· from {supply(flows, a.id).from} · avg {num(supply(flows, a.id).km)} road km
+                      {" "}· from {supply(flows, a.id).from} · avg {num(supply(flows, a.id).km)} km
                     </>
                   )}
                 </p>

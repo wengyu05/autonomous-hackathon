@@ -68,9 +68,8 @@ export function buildKpis(d: Results): KpiCardProps[] {
       ...costTrend(s.logistics, ref, ref?.logistics),
     },
     {
-      label: "Refineries · depots",
+      label: "Refineries · depot sites",
       value: `${refineryUnits} · ${d.depots.length}`,
-      unit: "sites",
       trendText: ref
         ? `${shortName(ref)}: ${ref.refineries} ${ref.refineries === 1 ? "refinery" : "refineries"} · ${ref.depotSites} depots`
         : "",
