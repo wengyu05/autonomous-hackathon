@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import type { Airport } from "@/lib/types";
+import type { Airport, Distances } from "@/lib/types";
 import { num } from "@/lib/format";
 import { START_COMMAND } from "@/lib/solver";
 
@@ -16,6 +16,11 @@ export const PLAN_OPTIONS = [
   { id: "b2", label: "B2 · refinery at every airport" },
 ];
 
+const DISTANCE_OPTIONS: { id: Distances; label: string; note: string }[] = [
+  { id: "official", label: "Official", note: "Great-circle km × 1.3, the organisers' rule. Routes are drawn straight." },
+  { id: "roads", label: "Real roads", note: "OpenStreetMap road km (OSRM). Routes follow the roads; costs differ from the official rule." },
+];
+
 interface SidebarProps {
   airports: Airport[];
   /** Demand the current plan was solved for; the boxes start from it. */
@@ -23,6 +28,8 @@ interface SidebarProps {
   maxTotalDemandKt: number;
   scenarioId: string;
   onScenarioChange: (id: string) => void;
+  distances: Distances;
+  onDistancesChange: (d: Distances) => void;
   onSolve: (demandKt: Record<string, number>, timeLimitS: number) => void;
   solving: boolean;
   solveError: string | null;
@@ -49,6 +56,28 @@ export default function Sidebar(p: SidebarProps) {
   return (
     <aside className="w-full shrink-0 border-b border-slate-200 bg-white px-5 py-6 md:sticky md:top-0 md:h-screen md:w-[290px] md:overflow-y-auto md:border-b-0 md:border-r">
       <span className="text-sm font-bold tracking-wide text-brand">SAF</span>
+
+      <fieldset className="mt-6">
+        <legend className={`${label} mb-2`}>Distances</legend>
+        <div role="radiogroup" className="grid grid-cols-2 rounded-md border border-slate-200 p-0.5">
+          {DISTANCE_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="radio"
+              aria-checked={p.distances === o.id}
+              disabled={p.solving}
+              onClick={() => p.onDistancesChange(o.id)}
+              className={`h-8 rounded text-sm ${
+                p.distances === o.id ? "bg-brand font-medium text-white" : "text-slate-600 hover:bg-slate-50"
+              } disabled:cursor-not-allowed`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-slate-500">{DISTANCE_OPTIONS.find((o) => o.id === p.distances)?.note}</p>
+      </fieldset>
 
       <form
         className="mt-6 space-y-5"
@@ -118,7 +147,7 @@ export default function Sidebar(p: SidebarProps) {
           disabled={p.solving || overLimit}
           className="h-9 w-full rounded-md bg-brand text-sm font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {p.solving ? `Solving (up to ${TIME_LIMITS[limitIdx]} s)…` : "Solve"}
+          {p.solving ? `Solving (up to ${TIME_LIMITS[limitIdx]} s)…` : `Solve · ${p.distances === "roads" ? "real roads" : "official distances"}`}
         </button>
 
         {overLimit && (

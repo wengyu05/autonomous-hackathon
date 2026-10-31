@@ -26,6 +26,19 @@ def deep_merge(base: dict, extra: dict) -> dict:
     return out
 
 
+# Distance modes the dashboards switch between (A9). "official" is the organisers' great-circle x circuity;
+# "roads" uses cached OpenStreetMap road km. Each mode keeps its own results folder.
+DISTANCE_MODES = {"official": "haversine", "roads": "osrm"}
+
+
+def distance_config(cfg, mode: str) -> dict:
+    return deep_merge(cfg, {"roads": {"source": DISTANCE_MODES[mode]}})
+
+
+def outputs_dir(mode: str) -> Path:
+    return ROOT / "outputs" if mode == "official" else ROOT / "outputs" / mode
+
+
 def load_geo(cfg) -> dict | None:
     path = ROOT / cfg["data"]["geo_json"]
     return json.loads(path.read_text()) if path.exists() else None

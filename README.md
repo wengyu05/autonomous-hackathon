@@ -61,7 +61,14 @@ The Next.js dashboard (`web/`) reads static JSON from `web/public/data/`, so it 
 ## Truck distances
 
 By default distance = great-circle km × 1.3, the organisers' rule (`roads.source: haversine`), and the
-map draws straight lines. Real roads remain available as a sensitivity run with `roads.source: osrm`:
+map draws straight lines. The Next.js dashboard has a **Distances** switch (Official / Real roads). Each
+mode keeps its own results: `outputs/` and `web/public/data/` for official, `outputs/roads/` and
+`web/public/data/roads/` for real roads. Rebuild either from the command line:
+
+```bash
+.venv/bin/python -m src.pipeline --distances roads --time-limit 300
+```
+ Real roads remain available as a sensitivity run with `roads.source: osrm`:
 every truck route then uses real road distance from OpenStreetMap, routed by the public OSRM server
 (`router.project-osrm.org`). Road km = the OSRM route between the nearest road points + the straight
 stretch from each site to its road × 1.3. Distances are cached in `data/road_matrix.json` and route

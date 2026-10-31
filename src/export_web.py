@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.load_data import ROOT, load_airports, load_biomass, load_config
+from src.load_data import DISTANCE_MODES, ROOT, load_airports, load_biomass, load_config, outputs_dir
 from src.plan_map import assumptions_table
 from src.roads import key
 
@@ -144,6 +144,15 @@ def build_all(out_dir: Path = OUT) -> dict[str, dict]:
     return docs
 
 
+def web_dir(mode: str) -> Path:
+    """Where the Next.js app serves a distance mode's JSON (mirrors load_data.outputs_dir)."""
+    return WEB_DATA if mode == "official" else WEB_DATA / mode
+
+
+def web_prefix(mode: str) -> str:
+    return "/data/" if mode == "official" else f"/data/{mode}/"
+
+
 def scenario_index(docs: dict[str, dict], prefix: str = "/data/") -> list[dict]:
     """Dropdown entries; `prefix` is "/data/" for static files or an API path."""
     return [{"id": sid, "label": d["meta"]["label"],
@@ -151,7 +160,7 @@ def scenario_index(docs: dict[str, dict], prefix: str = "/data/") -> list[dict]:
             for sid, d in docs.items()]
 
 
-def write_static(docs: dict[str, dict], dest: Path = WEB_DATA) -> list[Path]:
+def write_static(docs: dict[str, dict], dest: Path = WEB_DATA, prefix: str = "/data/") -> list[Path]:
     """Write the documents and scenarios.json where the Next.js app serves them."""
     dest.mkdir(parents=True, exist_ok=True)
     written = []
@@ -159,13 +168,17 @@ def write_static(docs: dict[str, dict], dest: Path = WEB_DATA) -> list[Path]:
         p = dest / FILES[sid]
         p.write_text(json.dumps(doc, separators=(",", ":"), default=float))
         written.append(p)
-    (dest / "scenarios.json").write_text(json.dumps(scenario_index(docs), indent=2))
+    (dest / "scenarios.json").write_text(json.dumps(scenario_index(docs, prefix), indent=2))
     return written
 
 
 def main():
-    docs = build_all()
-    for p in write_static(docs):
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--distances", choices=list(DISTANCE_MODES), default="official")
+    mode = p.parse_args().distances
+    docs = build_all(outputs_dir(mode))
+    for p in write_static(docs, web_dir(mode), web_prefix(mode)):
         print(f"wrote {p.relative_to(ROOT)}")
     for sid, d in docs.items():
         print(f"  {sid}: {len(d['depots'])} depots, {len(d['refineries'])} refineries, "

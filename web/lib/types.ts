@@ -4,6 +4,9 @@
 export type Size = "Small" | "Large";
 export type Leg = "farm_depot" | "depot_refinery" | "refinery_airport";
 
+/** Distance rule a plan was solved with: the organisers' great-circle × 1.3, or OpenStreetMap road km. */
+export type Distances = "official" | "roads";
+
 export interface Summary {
   /** Total annual cost in USD: annualised CapEx + fixed OpEx + variable OpEx + logistics. */
   totalCost: number;
