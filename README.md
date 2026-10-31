@@ -18,7 +18,12 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m src.verify                        # independent check of the MILP and both baselines
 .venv/bin/python -m pytest -q
 .venv/bin/streamlit run app.py                        # dashboard: map + data, demand inputs, re-solve
+.venv/bin/python -m src.export_html                   # save the current plan as one HTML file
 ```
+
+`src.export_html` writes `outputs/kalimantan_saf_dashboard.html`: the optimised plan and both baselines with
+their road-route maps and tables, in one file you can open or share without Python. Map tiles load from
+the internet when it is opened.
 
 The dashboard opens on the last plan in `outputs/`. Enter demand per airport and press **Solve**. A 60 s
 limit gives a quick plan with its gap shown; pick 300 s to prove the plan optimal (about 3.5 minutes at the
